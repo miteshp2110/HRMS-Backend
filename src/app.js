@@ -1,0 +1,67 @@
+const express = require('express')
+const app = express()
+
+const authRoutes = require('./routes/authRoutes')
+const userRoutes = require('./routes/user/userRoutes')
+const roleRoutes = require('./routes/roles/roleRoutes')
+const bankRoutes = require('./routes/bank/bankRoutes')
+const jobRoutes = require('./routes/job/jobRoutes')
+
+const { getAllPermissions } = require('./controllers/roles')
+const authenticate = require('./middleware/authenticate')
+const authorize = require('./middleware/authorize')
+
+
+app.use(express.json())
+
+
+app.use('/api/auth',authRoutes)
+
+// User Routes
+
+app.use('/api/user',userRoutes)
+
+
+// Roles Routes
+
+app.use("/api/roles",roleRoutes)
+app.use("/api/permissions",authenticate,authorize(['roles.view']),getAllPermissions)
+
+// Job Routes
+
+app.use("/api/jobs",jobRoutes)
+
+// Shift Routes
+
+app.use("/api/shifts",require('./routes/shifts/shiftRoutes'))
+
+// Documents Routes
+
+app.use("/api/documents",require('./routes/documents/documentRoutes'))
+
+// Skills Routes
+
+app.use("/api/skills",require('./routes/skills/skillsRoutes'))
+
+// Leave Routes
+
+app.use("/api/leaves",require('./routes/leaves/leaveRoutes'))
+
+// Expense Routes
+
+app.use("/api/expense",require('./routes/expense/expenseRoutes'))
+
+// Bank Routes
+
+app.use("/api/bank",bankRoutes)
+
+// Skill Matrix
+
+app.use("/api/skillMatrix",require('./routes/skillMatrix/skillMatrixRoutes'))
+
+// Attendance
+
+app.use('/api/attendance',require('./routes/attendance/attendanceRoute'))
+
+
+module.exports = app
