@@ -63,5 +63,19 @@ app.use("/api/skillMatrix",require('./routes/skillMatrix/skillMatrixRoutes'))
 
 app.use('/api/attendance',require('./routes/attendance/attendanceRoute'))
 
+// Calender
+
+app.use('/api/calender',require('./routes/holidays/holidayRoutes'))
+
+
+// Payroll
+
+app.use('/api/payroll/components',require('./routes/payrollComponents/payrollComponentsRoutes'))
+
+app.use('/api/payroll/structure',require('./routes/salaryStructure/salaryStuctureRoutes'))
+
+// Loans
+
+app.use('/api/loans',require('./routes/loan/loanRoutes'))
 
 module.exports = app

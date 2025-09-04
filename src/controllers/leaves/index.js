@@ -1,11 +1,22 @@
-const { createLeaveType } = require('./create');
-const { getAllLeaveTypes } = require('./read');
+const { createLeaveType, createLeaveRequest } = require('./create');
+const { getAllLeaveTypes, getMyLeaveBalances, getMyLeaveRequests, getLeaveBalancesByEmployee, getLeaveRecordsByEmployee } = require('./read');
 const { updateLeaveType } = require('./update');
-const { deleteLeaveType } = require('./delete');
+const { deleteLeaveType, deleteMyLeaveRequest } = require('./delete');
+const { getPrimaryApprovalRequests, getSecondaryApprovalRequests, setPrimaryApprovalStatus, setSecondaryApprovalStatus } = require('./approval');
 
 module.exports = {
   createLeaveType,
   getAllLeaveTypes,
   updateLeaveType,
   deleteLeaveType,
+  getMyLeaveBalances,
+  getMyLeaveRequests,
+  createLeaveRequest,
+  deleteMyLeaveRequest,
+  getPrimaryApprovalRequests,
+  getSecondaryApprovalRequests,
+  setPrimaryApprovalStatus,
+  setSecondaryApprovalStatus,
+  getLeaveBalancesByEmployee,
+  getLeaveRecordsByEmployee
 };
