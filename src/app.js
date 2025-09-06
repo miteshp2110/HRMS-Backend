@@ -25,7 +25,7 @@ app.use('/api/user',userRoutes)
 // Roles Routes
 
 app.use("/api/roles",roleRoutes)
-app.use("/api/permissions",authenticate,authorize(['roles.view']),getAllPermissions)
+app.use("/api/permissions",authenticate,authorize(['roles.manage']),getAllPermissions)
 
 // Job Routes
 
@@ -77,5 +77,9 @@ app.use('/api/payroll/structure',require('./routes/salaryStructure/salaryStuctur
 // Loans
 
 app.use('/api/loans',require('./routes/loan/loanRoutes'))
+
+// Payroll
+
+app.use('/api/payroll',require('./routes/payroll/payrollRoutes'))
 
 module.exports = app

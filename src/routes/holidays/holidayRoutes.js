@@ -10,14 +10,16 @@ const {
 } = require('../../controllers/holidays');
 
 const router = express.Router();
+const canManageCalendar = authorize('calender.manage');
 
+router.use(authenticate);
 // Public routes - any authenticated user can see the calendar
-router.get('/', authenticate, getAllHolidays);
-router.get('/work-week', authenticate, getWorkWeek);
+router.get('/', getAllHolidays);
+router.get('/work-week', getWorkWeek);
 
 // Admin routes - requires a specific permission to manage the calendar
-router.post('/', authenticate, createHoliday);
-router.delete('/:id', authenticate,  deleteHoliday);
-router.patch('/work-week', authenticate, updateWorkWeek);
+router.post('/',canManageCalendar, createHoliday);
+router.delete('/:id', canManageCalendar,deleteHoliday);
+router.patch('/work-week',  canManageCalendar,updateWorkWeek);
 
 module.exports = router;

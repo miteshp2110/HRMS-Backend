@@ -11,14 +11,16 @@ const {
 } = require('../../controllers/roles'); // Clean import from the index file
 
 const router = express.Router();
+const canManageRoles = authorize(['roles.manage']);
 
 router.use(authenticate);
+router.use(canManageRoles);
 
-router.post('/', authorize(['roles.assign']), createRole);
-router.get('/', authorize(['roles.view']), getAllRoles);
-router.get('/:id', authorize(['roles.view']), getRoleById);
-router.patch('/:id', authorize(['roles.assign']), updateRole);
-router.put('/:id/permissions', authorize(['roles.assign']), manageRolePermissions);
-router.delete('/:id', authorize(['roles.assign']), deleteRole);
+router.post('/',  createRole);
+router.get('/',  getAllRoles);
+router.get('/:id',  getRoleById);
+router.patch('/:id',  updateRole);
+router.put('/:id/permissions',  manageRolePermissions);
+router.delete('/:id',  deleteRole);
 
 module.exports = router;

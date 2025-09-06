@@ -11,17 +11,19 @@ const {
   uploadDocument,
   getDocumentsByEmployeeId,
   deleteUploadedDocument,
+  getExpiringDocuments,
 } = require('../../controllers/documents');
 
 const router = express.Router();
 
 router.use(authenticate);
+const canManageDocuments = authorize(['documents.manage']);
 
 // We'll use a specific 'documents.manage' permission for CUD actions
-router.post('/', authorize(['documents.manage']), createDocument);
+router.post('/', canManageDocuments, createDocument);
 router.get('/', getAllDocuments); // Any user can see the list of required docs
-router.patch('/:id', authorize(['documents.manage']), updateDocument);
-router.delete('/:id', authorize(['documents.manage']), deleteDocument);
+router.patch('/:id', canManageDocuments, updateDocument);
+router.delete('/:id', canManageDocuments, deleteDocument);
 
 // Uploading
 
@@ -36,17 +38,19 @@ router.post(
 // --- Admin Management Routes ---
 router.get(
   '/employee/:employeeId', // Admin gets docs for a specific employee
-  authorize(['documents.manage']), 
+  canManageDocuments, 
   getDocumentsByEmployeeId
 );
 router.post(
   '/employee/:employeeId',
-  authorize(['documents.manage']),
+  canManageDocuments,
   upload.single('documentFile'),
   uploadDocument
 );
+
+router.get('/expiring',canManageDocuments, getExpiringDocuments);
 // --- Shared Delete Route (logic is handled in the controller) ---
-router.delete('/uploaded/:documentId', deleteUploadedDocument);
+router.delete('/uploaded/:documentId',deleteUploadedDocument);
 
 
 

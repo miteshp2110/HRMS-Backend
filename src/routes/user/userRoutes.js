@@ -3,9 +3,10 @@ const authenticate = require('../../middleware/authenticate');
 const authorize = require('../../middleware/authorize');
 const upload = require('../../middleware/uploadMiddleware');
 const { createUser /*, other controllers */ } = require('../../controllers/user/userController');
-const { updateUser } = require('../../controllers/user');
+const { updateUser, getMyProfile, getUserProfileById } = require('../../controllers/user');
 
 const router = express.Router();
+const canManageUser = authorize(['user.manage']);
 
 // ... other user routes like /profile-image
 
@@ -14,7 +15,7 @@ const router = express.Router();
 router.post(
   '/',
   authenticate,
-  authorize(['user.create']),
+  canManageUser,
   upload.single('profileImage'), // Field name for the optional profile image
   createUser
 );
@@ -23,8 +24,12 @@ router.post(
 router.patch(
   '/:id',
   authenticate,
-  authorize(['user.update']),
+  canManageUser,
   updateUser
 );
+
+router.get("/profile",authenticate,getMyProfile)
+
+router.get('/profile/:id',authenticate,canManageUser,getUserProfileById)
 
 module.exports = router;

@@ -16,14 +16,17 @@ const router = express.Router();
 router.use(authenticate)
 
 // --- Employee Self-Service Routes ---
-router.post('/punch-in', punchIn);
-router.post('/punch-out', punchOut);
+
+const canManageAttendance = authorize(['attendance.manage']);
+
+router.post('/punch-in',canManageAttendance, punchIn);
+router.post('/punch-out',canManageAttendance, punchOut);
 router.get('/me',getMyAttendance)
-router.get('/all',getAttendanceRecords)
+router.get('/all',canManageAttendance,getAttendanceRecords)
 
-router.post('/update/pay-type/:recordId',updatePayType)
+router.post('/update/pay-type/:recordId',canManageAttendance,updatePayType)
 
-router.post('/update/overtime/:recordId',approveOvertime)
+router.post('/update/overtime/:recordId',canManageAttendance,approveOvertime)
 // router.get('/me', getMyAttendance);
 
 // --- Admin & Manager Routes ---

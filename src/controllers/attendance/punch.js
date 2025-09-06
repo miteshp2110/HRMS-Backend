@@ -35,12 +35,14 @@ const punchIn = async (req, res) => {
     // Get the official punch time based on the environment
     const actualPunchTimeObject = getPunchTime(req);
     const time = actualPunchTimeObject.toISOString(); // Convert to UTC string for consistent processing
+  
 
     connection = await pool.getConnection();
+    const attendanceDate = time.split("T")[0];
 
     const [existing] = await connection.query(
-        "SELECT id FROM attendance_record WHERE employee_id = ? AND punch_out IS NULL",
-        [employeeId]
+        "SELECT id FROM attendance_record WHERE employee_id = ? AND attendance_date = ?",
+        [employeeId,attendanceDate]
     );
     if (existing.length > 0) {
         return res.status(409).json({ message: 'You have an open punch-in record. Please punch out first.' });
@@ -64,7 +66,6 @@ const punchIn = async (req, res) => {
     let effectivePunchInTime = actualPunchInTime;
     let attendanceStatus = "present";
     
-    const attendanceDate = time.split("T")[0];
     const shiftStartTime = new Date(`${attendanceDate}T${shift.from_time}Z`);
     // console.log("actual punch in time: ",actualPunchInTime)
     // console.log("shiftStartTime: ",shiftStartTime)
@@ -114,7 +115,7 @@ const punchOut = async (req, res) => {
   
   let connection;
   try {
-    // Get the official punch time based on the environment
+  // Get the official punch time based on the environment
     const actualPunchTimeObject = getPunchTime(req);
     const time = actualPunchTimeObject.toISOString(); // Convert to UTC string
 
@@ -124,17 +125,18 @@ const punchOut = async (req, res) => {
       SELECT ar.id, ar.punch_in,ar.attendance_status, s.to_time, s.punch_out_margin, s.from_time, (s.to_time - s.from_time) as shift_duration, half_day_threshold
       FROM attendance_record ar
       JOIN shifts s ON ar.shift = s.id
-      WHERE ar.employee_id = ? AND ar.punch_out IS NULL
+      WHERE ar.employee_id = ? AND ar.punch_out IS NULL and ar.punch_in IS NOT NULL
     `;
     const [[attendance]] = await connection.query(findRecordSql, [employeeId]);
+    if (!attendance) {
+      return res.status(400).json({ message: "Punch in required first" });
+    }
+  
     const shift_duration = attendance.shift_duration/10000
     const half_day_threshold = attendance.half_day_threshold
     let attendance_status = attendance.attendance_status
     
 
-    if (!attendance) {
-      return res.status(400).json({ message: "Punch in required first" });
-    }
 
     const actualPunchOutTime = new Date(time);
     let effectivePunchOutTime = actualPunchOutTime;

@@ -13,12 +13,13 @@ const {
 const router = express.Router();
 
 router.use(authenticate);
+const canManageExpenses = authorize(['expenses.manage']);
 
 // We'll use a specific 'expenses.manage' permission
-router.post('/', authorize(['expenses.manage']), createExpense);
-router.get('/:id', authorize(['expenses.manage']), getExpensesByEmployee);
-router.get('/', authorize(['expenses.manage']), getExpenses);
-router.patch('/:id', authorize(['expenses.manage']), updateExpense);
-router.delete('/:id', authorize(['expenses.manage']), deleteExpense);
+router.post('/', canManageExpenses, createExpense);
+router.get('/:id', canManageExpenses, getExpensesByEmployee);
+router.get('/', canManageExpenses, getExpenses);
+router.patch('/:id', canManageExpenses, updateExpense);
+router.delete('/:id', canManageExpenses, deleteExpense);
 
 module.exports = router;

@@ -21,25 +21,26 @@ const {
 const router = express.Router();
 
 router.use(authenticate);
+const canManageLeaves = authorize(['leaves.manage']);
 
 // We'll use a specific 'leaves.manage' permission for CUD actions
-router.post('/types', authorize(['leaves.manage']), createLeaveType);
+router.post('/types', canManageLeaves, createLeaveType);
 router.get('/types', getAllLeaveTypes); // Any authenticated user can view leave types
-router.patch('/types/:id', authorize(['leaves.manage']), updateLeaveType);
-router.delete('/types/:id', authorize(['leaves.manage']), deleteLeaveType);
+router.patch('/types/:id', canManageLeaves, updateLeaveType);
+router.delete('/types/:id', canManageLeaves, deleteLeaveType);
 
 router.get("/balance",getMyLeaveBalances)
 router.get("/records",getMyLeaveRequests)
 router.post("/request-leave",createLeaveRequest)
 router.delete("/request/:recordId",deleteMyLeaveRequest)
 
-router.get("/primary-approval",getPrimaryApprovalRequests)
-router.get("/secondry-approval",getSecondaryApprovalRequests)
+router.get("/primary-approval",canManageLeaves,getPrimaryApprovalRequests)
+router.get("/secondry-approval",canManageLeaves,getSecondaryApprovalRequests)
 
-router.post("/approve-primary/:recordId",setPrimaryApprovalStatus)
-router.post("/approve-secondry/:recordId",setSecondaryApprovalStatus)
+router.post("/approve-primary/:recordId",canManageLeaves,setPrimaryApprovalStatus)
+router.post("/approve-secondry/:recordId",canManageLeaves,setSecondaryApprovalStatus)
 
-router.get('/balance/:employeeId',getLeaveBalancesByEmployee)
-router.get('/records/:employeeId',getLeaveRecordsByEmployee)
+router.get('/balance/:employeeId',canManageLeaves,getLeaveBalancesByEmployee)
+router.get('/records/:employeeId',canManageLeaves,getLeaveRecordsByEmployee)
 
 module.exports = router;

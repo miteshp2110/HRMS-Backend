@@ -11,11 +11,12 @@ const {
 const router = express.Router();
 
 router.use(authenticate);
+const canManageSkills = authorize(['skills.manage']);
 
 // We'll use a specific 'skills.manage' permission for CUD actions
-router.post('/', authorize(['skills.manage']), createSkill);
+router.post('/', canManageSkills, createSkill);
 router.get('/', getAllSkills); // Any authenticated user can view skills
-router.patch('/:id', authorize(['skills.manage']), updateSkill);
-router.delete('/:id', authorize(['skills.manage']), deleteSkill);
+router.patch('/:id', canManageSkills, updateSkill);
+router.delete('/:id', canManageSkills, deleteSkill);
 
 module.exports = router;

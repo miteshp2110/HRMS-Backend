@@ -13,10 +13,11 @@ const router = express.Router();
 
 router.use(authenticate);
 
-// We'll use a specific 'bank_details.manage' permission
-router.get('/details/:employeeId', authorize(['user.view']), getBankDetails);
-router.post('/details/:employeeId', authorize(['user.create']), addOrUpdateBankDetails);
-router.delete('/details/:employeeId', authorize(['user.delete']), deleteBankDetails);
+const canManageBankDetails = authorize(['user.manage']); 
+
+router.get('/details/:employeeId', canManageBankDetails, getBankDetails);
+router.post('/details/:employeeId', canManageBankDetails, addOrUpdateBankDetails);
+router.delete('/details/:employeeId', canManageBankDetails, deleteBankDetails);
 router.get("/self",getMyBankDetails)
 router.post('/self',addOrUpdateMyBankDetails)
 

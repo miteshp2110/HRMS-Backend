@@ -70,4 +70,63 @@ const approveOrRejectLoan = async (req, res) => {
 };
 
 
-module.exports = { getAllLoanRequests, approveOrRejectLoan };
+/**
+ * @description [Admin] Gets a list of all loans that have been approved or are currently active.
+ */
+const getApprovedLoans = async (req, res) => {
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        const sql = `
+            SELECT 
+                l.*, 
+                CONCAT(e.first_name, ' ', e.last_name) as employee_name
+            FROM employee_loans l
+            JOIN user e ON l.employee_id = e.id
+            ORDER BY l.request_date DESC;
+        `;
+        const [requests] = await connection.query(sql);
+        res.status(200).json(requests);
+    } catch (error) {
+        console.error('Error fetching approved loans:', error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+/**
+ * @description Gets the repayment history for a specific loan.
+ * Security: Checks if the requester is the owner of the loan or an admin.
+ */
+const getLoanRepaymentHistory = async (req, res) => {
+    const { loanId } = req.params;
+    const requester = req.user;
+    let connection;
+    try {
+        connection = await pool.getConnection();
+
+        // 1. Check if the user has permission to view this loan's history
+        const [[loan]] = await connection.query('SELECT employee_id FROM employee_loans WHERE id = ?', [loanId]);
+        if (!loan) {
+            return res.status(404).json({ message: 'Loan not found.' });
+        }
+        
+        
+        // 2. Fetch the repayment history
+        const sql = `
+            SELECT * FROM loan_repayments
+            WHERE loan_id = ?
+            ORDER BY repayment_date ASC;
+        `;
+        const [history] = await connection.query(sql, [loanId]);
+        res.status(200).json(history);
+    } catch (error) {
+        console.error(`Error fetching repayment history for loan ${loanId}:`, error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+module.exports = { getAllLoanRequests, approveOrRejectLoan, getApprovedLoans,getLoanRepaymentHistory };

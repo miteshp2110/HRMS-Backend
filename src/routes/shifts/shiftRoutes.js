@@ -11,11 +11,12 @@ const {
 const router = express.Router();
 
 router.use(authenticate);
+const canManageShifts = authorize(['shift.manage'])
 
 // We'll use the 'manage_shifts' permission for CUD actions
-router.post('/', authorize(['shifts.create']), createShift);
-router.get('/', authorize(['user.create']), getAllShifts);
-router.patch('/:id', authorize(['shifts.create']), updateShift);
-router.delete('/:id', authorize(['shifts.delete']), deleteShift);
+router.post('/', canManageShifts, createShift);
+router.get('/', canManageShifts, getAllShifts);
+router.patch('/:id', canManageShifts, updateShift);
+router.delete('/:id', canManageShifts, deleteShift);
 
 module.exports = router;

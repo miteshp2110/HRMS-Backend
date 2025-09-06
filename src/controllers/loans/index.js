@@ -1,9 +1,13 @@
 const { requestLoan, getMyLoans } = require('./request');
-const { getAllLoanRequests, approveOrRejectLoan } = require('./approval');
+const { getAllLoanRequests, approveOrRejectLoan, getApprovedLoans, getLoanRepaymentHistory } = require('./approval');
+const { editLoan } = require('./edit');
 
 module.exports = {
   requestLoan,
   getMyLoans,
   getAllLoanRequests,
   approveOrRejectLoan,
+  getApprovedLoans,
+  getLoanRepaymentHistory,
+  editLoan
 };
