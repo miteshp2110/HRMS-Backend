@@ -37,8 +37,8 @@ router.delete("/request/:recordId",deleteMyLeaveRequest)
 router.get("/primary-approval",canManageLeaves,getPrimaryApprovalRequests)
 router.get("/secondry-approval",canManageLeaves,getSecondaryApprovalRequests)
 
-router.post("/approve-primary/:recordId",canManageLeaves,setPrimaryApprovalStatus)
-router.post("/approve-secondry/:recordId",canManageLeaves,setSecondaryApprovalStatus)
+router.post("/primary-approval/:recordId",canManageLeaves,setPrimaryApprovalStatus)
+router.post("/secondry-approval/:recordId",canManageLeaves,setSecondaryApprovalStatus)
 
 router.get('/balance/:employeeId',canManageLeaves,getLeaveBalancesByEmployee)
 router.get('/records/:employeeId',canManageLeaves,getLeaveRecordsByEmployee)

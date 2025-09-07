@@ -11,6 +11,7 @@ const authorize = (requiredPermissions = []) => {
     if (!user || !user.permissions) {
       return res.status(403).json({ message: 'Forbidden. No user permissions found.' });
     }
+    // console.log(user.permissions)
 
     // Check if the user has all of the required permissions
     const hasAllPermissions = requiredPermissions.every(p => user.permissions.includes(p));

@@ -29,6 +29,9 @@ const deleteLeaveType = async (req, res) => {
 
     res.status(204).send();
   } catch (error) {
+    if(error.code === 'ER_ROW_IS_REFERENCED_2'){
+      res.status(401).json({ message: 'Cannot Delete Leave in use' });
+    }
     console.error('Error deleting leave type:', error);
     res.status(500).json({ message: 'An internal server error occurred.' });
   } finally {

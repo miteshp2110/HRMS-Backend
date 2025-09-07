@@ -3,7 +3,7 @@ const authenticate = require('../../middleware/authenticate');
 const authorize = require('../../middleware/authorize');
 const upload = require('../../middleware/uploadMiddleware');
 const { createUser /*, other controllers */ } = require('../../controllers/user/userController');
-const { updateUser, getMyProfile, getUserProfileById } = require('../../controllers/user');
+const { updateUser, getMyProfile, getUserProfileById, getAllUsers, searchUsers, findUsersByPermissions, getDirectReports } = require('../../controllers/user');
 
 const router = express.Router();
 const canManageUser = authorize(['user.manage']);
@@ -31,5 +31,9 @@ router.patch(
 router.get("/profile",authenticate,getMyProfile)
 
 router.get('/profile/:id',authenticate,canManageUser,getUserProfileById)
+router.get('/profiles/all',authenticate,canManageUser,getAllUsers)
+router.get('/search',authenticate,canManageUser,searchUsers)
+router.get('/permissions',authenticate,canManageUser,findUsersByPermissions)
+router.get('/reports/:managerId',authenticate,getDirectReports)
 
 module.exports = router;

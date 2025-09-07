@@ -9,6 +9,7 @@ const {
   getApprovedLoans,
   getLoanRepaymentHistory,
   editLoan,
+  getLoansByEmployee,
 } = require('../../controllers/loans');
 
 const router = express.Router();
@@ -26,5 +27,6 @@ router.patch('/approve/:loanId', canManageLoans,approveOrRejectLoan);
 router.get('/approved', canManageLoans,getApprovedLoans);
 router.get('/repayments/:loanId',canManageLoans,getLoanRepaymentHistory)
 router.patch('/edit/:loanId',canManageLoans,editLoan)
+router.get('/employee/:employeeId',canManageLoans,getLoansByEmployee)
 
 module.exports = router;

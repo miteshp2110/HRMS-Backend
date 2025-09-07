@@ -99,4 +99,40 @@ const getMyLoans = async (req, res) => {
     }
 };
 
-module.exports = { requestLoan, getMyLoans };
+/**
+ * @description Gets all loan records for a specific employee, regardless of status.
+ * Security: Checks if the requester is the owner of the loans or an admin.
+ */
+const getLoansByEmployee = async (req, res) => {
+    const { employeeId } = req.params;
+    const requester = req.user;
+    let connection;
+    try {
+        connection = await pool.getConnection();
+
+        // 1. Security check: Allow if the user is requesting their own loans OR if they have admin rights
+        const isRequestingSelf = requester.id.toString() === employeeId;
+        const isAdmin = requester.permissions.includes('loans.manage');
+        if (!isRequestingSelf && !isAdmin) {
+            return res.status(403).json({ message: 'Forbidden. You do not have permission to view these loans.' });
+        }
+        
+        // 2. Fetch all loans for the employee
+        const sql = `
+            SELECT l.*, CONCAT(u.first_name, ' ', u.last_name) as approved_by_name
+            FROM employee_loans l
+            LEFT JOIN user u ON l.approved_by = u.id
+            WHERE l.employee_id = ?
+            ORDER BY l.request_date DESC;
+        `;
+        const [loans] = await connection.query(sql, [employeeId]);
+        res.status(200).json(loans);
+    } catch (error) {
+        console.error(`Error fetching loans for employee ${employeeId}:`, error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+module.exports = { requestLoan, getMyLoans,getLoansByEmployee };

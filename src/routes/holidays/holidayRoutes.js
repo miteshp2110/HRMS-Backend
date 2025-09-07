@@ -10,7 +10,7 @@ const {
 } = require('../../controllers/holidays');
 
 const router = express.Router();
-const canManageCalendar = authorize('calender.manage');
+const canManageCalendar = authorize(['calender.manage']);
 
 router.use(authenticate);
 // Public routes - any authenticated user can see the calendar

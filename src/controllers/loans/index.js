@@ -1,4 +1,4 @@
-const { requestLoan, getMyLoans } = require('./request');
+const { requestLoan, getMyLoans, getLoansByEmployee } = require('./request');
 const { getAllLoanRequests, approveOrRejectLoan, getApprovedLoans, getLoanRepaymentHistory } = require('./approval');
 const { editLoan } = require('./edit');
 
@@ -9,5 +9,6 @@ module.exports = {
   approveOrRejectLoan,
   getApprovedLoans,
   getLoanRepaymentHistory,
-  editLoan
+  editLoan,
+  getLoansByEmployee
 };
