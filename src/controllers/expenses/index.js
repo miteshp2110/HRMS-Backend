@@ -1,5 +1,5 @@
 const { createExpense } = require('./create');
-const { getExpenses, getExpenseById, getExpensesByEmployee } = require('./read');
+const { getExpenses, getExpenseById, getExpensesByEmployee, getEmployeeExpenseSummary } = require('./read');
 const { updateExpense } = require('./update');
 const { deleteExpense } = require('./delete');
 
@@ -9,5 +9,6 @@ module.exports = {
   updateExpense,
   deleteExpense,
   getExpenseById,
-  getExpensesByEmployee
+  getExpensesByEmployee,
+  getEmployeeExpenseSummary
 };

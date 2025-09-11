@@ -28,8 +28,10 @@ const getPunchTime = (req) => {
 };
 
 const punchIn = async (req, res) => {
-  const employeeId = req.user.id;
-  
+  let employeeId = req.user.id;
+  if(req.body.employee_id){
+    employeeId = req.body.employee_id;
+  }
   let connection;
   try {
     // Get the official punch time based on the environment
@@ -111,7 +113,10 @@ const punchIn = async (req, res) => {
 };
 
 const punchOut = async (req, res) => {
-  const employeeId = req.user.id;
+  let employeeId = req.user.id;
+  if(req.body.employee_id){
+    employeeId = req.body.employee_id
+  }
   
   let connection;
   try {

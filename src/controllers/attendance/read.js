@@ -41,7 +41,7 @@ const getMyAttendance = async (req, res) => {
 };
 
 const getAttendanceRecords = async (req, res) => {
-    const { employee_id, shift_id, date, week, month, year, page = 1, limit = 20 } = req.query;
+    const { employee_id, shift_id, date, week, month, year, page = 1, limit = 31 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
     let connection;

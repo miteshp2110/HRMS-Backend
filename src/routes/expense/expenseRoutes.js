@@ -8,6 +8,7 @@ const {
   deleteExpense,
   getExpenseById,
   getExpensesByEmployee,
+  getEmployeeExpenseSummary,
 } = require('../../controllers/expenses');
 
 const router = express.Router();
@@ -21,5 +22,6 @@ router.get('/:id', canManageExpenses, getExpensesByEmployee);
 router.get('/', canManageExpenses, getExpenses);
 router.patch('/:id', canManageExpenses, updateExpense);
 router.delete('/:id', canManageExpenses, deleteExpense);
+// router.get("/",canManageExpenses,getEmployeeExpenseSummary)
 
 module.exports = router;

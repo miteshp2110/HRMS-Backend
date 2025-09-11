@@ -83,4 +83,11 @@ app.use('/api/loans',require('./routes/loan/loanRoutes'))
 
 app.use('/api/payroll',require('./routes/payroll/payrollRoutes'))
 
+// Summary
+
+app.use('/api/summary',require('./routes/summary/summaryRoutes'))
+
+//Dashboard
+
+app.use('/api/dashboard',require('./routes/dashboard/dashboardRoutes'))
 module.exports = app

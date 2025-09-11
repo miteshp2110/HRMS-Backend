@@ -13,6 +13,7 @@ const getApprovalRequests = async (req, res) => {
         esm.id, 
         esm.status,
         esm.created_at,
+        u.id as employee_id,
         u.first_name,
         u.last_name,
         s.skill_name

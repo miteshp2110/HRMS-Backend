@@ -2,7 +2,7 @@ const { createLeaveType, createLeaveRequest } = require('./create');
 const { getAllLeaveTypes, getMyLeaveBalances, getMyLeaveRequests, getLeaveBalancesByEmployee, getLeaveRecordsByEmployee } = require('./read');
 const { updateLeaveType } = require('./update');
 const { deleteLeaveType, deleteMyLeaveRequest } = require('./delete');
-const { getPrimaryApprovalRequests, getSecondaryApprovalRequests, setPrimaryApprovalStatus, setSecondaryApprovalStatus } = require('./approval');
+const { getPrimaryApprovalRequests, getSecondaryApprovalRequests, setPrimaryApprovalStatus, setSecondaryApprovalStatus, getMyApprovalHistory } = require('./approval');
 
 module.exports = {
   createLeaveType,
@@ -18,5 +18,6 @@ module.exports = {
   setPrimaryApprovalStatus,
   setSecondaryApprovalStatus,
   getLeaveBalancesByEmployee,
-  getLeaveRecordsByEmployee
+  getLeaveRecordsByEmployee,
+  getMyApprovalHistory
 };

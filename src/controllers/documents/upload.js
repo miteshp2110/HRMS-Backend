@@ -26,7 +26,11 @@ const uploadDocument = async (req, res) => {
     const sql = `
       INSERT INTO uploaded_document 
       (document_id, user_id, upload_link, upload_date, expiry_date) 
-      VALUES (?, ?, ?, CURDATE(), ?);
+      VALUES (?, ?, ?, CURDATE(), ?)
+      ON DUPLICATE KEY UPDATE
+        upload_link = VALUES(upload_link),
+        upload_date = VALUES(upload_date),
+        expiry_date = VALUES(expiry_date);
     `;
     const [result] = await connection.query(sql, [document_id, targetEmployeeId, documentUrl, expiry_date || null]);
 

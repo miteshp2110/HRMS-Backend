@@ -18,13 +18,13 @@ router.use(authenticate);
 const canManagePayroll = authorize(['payroll.manage']);
 
 // Initiates the run and puts it in a 'processing' state for review
-router.post('/run/initiate',  canManagePayroll,initiatePayrollRun);
+router.post('/runs/initiate',  canManagePayroll,initiatePayrollRun);
 
 // Marks the run as 'paid' and updates loan statuses
 router.patch('/run/finalize/:payrollId',  canManagePayroll,finalizePayrollRun);
 
 router.delete('/run/:payrollId',canManagePayroll,deletePayrollRun)
-router.get('/run',canManagePayroll,getAllPayrolls)
+router.get('/runs',canManagePayroll,getAllPayrolls)
 
 // payslips
 

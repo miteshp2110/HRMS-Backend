@@ -16,7 +16,8 @@ const getEmployeeSalaryStructure = async (req, res) => {
         pc.type AS component_type,
         ess.value_type,
         ess.value,
-        base_pc.name AS based_on_component_name
+        base_pc.name AS based_on_component_name,
+        pc.id AS component_id
       FROM employee_salary_structure ess
       JOIN payroll_components pc ON ess.component_id = pc.id
       LEFT JOIN payroll_components base_pc ON ess.based_on_component_id = base_pc.id

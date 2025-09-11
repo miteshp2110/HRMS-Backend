@@ -26,7 +26,10 @@ const login = async (req, res) => {
       SELECT 
         u.id, 
         u.email, 
+        u.first_name,
+        u.last_name,
         u.password_hash,
+        u.salary_visibility,
         r.name AS role_name,
         p.name AS permission_name
       FROM user u
@@ -56,7 +59,10 @@ const login = async (req, res) => {
     const userProfile = {
       id: user.id,
       email: user.email,
+      salary_visibility:user.salary_visibility===1?true:false,
       role: user.role_name,
+      first_name : user.first_name,
+      last_name:user.last_name,
       permissions: rows.map(row => row.permission_name).filter(p => p !== null)
     };
 

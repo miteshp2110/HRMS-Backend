@@ -9,7 +9,7 @@ const {
 } = require('../../controllers/payroll/components');
 
 const router = express.Router();
-const canManagePayroll = authorize('payroll.manage');
+const canManagePayroll = authorize(['payroll.manage']);
 router.use(authenticate);
 router.use(canManagePayroll);
 

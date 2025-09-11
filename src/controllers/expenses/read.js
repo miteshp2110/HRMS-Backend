@@ -92,8 +92,37 @@ const getExpensesByEmployee = async (req, res) => {
   }
 };
 
+
+/**
+ * @description Gets a summary of total expenses for each employee who has expenses.
+ */
+const getEmployeeExpenseSummary = async (req, res) => {
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        const sql = `
+            SELECT 
+                e.employee_id AS id,
+                CONCAT(u.first_name, ' ', u.last_name) AS employee_name,
+                SUM(e.expense) AS total_amount
+            FROM expense_on_employee e
+            JOIN user u ON e.employee_id = u.id
+            GROUP BY e.employee_id, employee_name
+            ORDER BY total_amount DESC;
+        `;
+        const [summary] = await connection.query(sql);
+        res.status(200).json(summary);
+    } catch (error) {
+        console.error('Error fetching employee expense summary:', error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
 module.exports = { 
   getExpenses, 
   getExpenseById, 
-  getExpensesByEmployee 
+  getExpensesByEmployee ,
+  getEmployeeExpenseSummary
 };

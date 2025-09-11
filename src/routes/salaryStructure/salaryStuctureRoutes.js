@@ -6,6 +6,7 @@ const {
   getEmployeeSalaryStructure,
   removeComponent,
   getMySalaryStructure,
+  editEmployeeComponent,
 } = require('../../controllers/payroll/structure');
 
 const router = express.Router();
@@ -23,6 +24,7 @@ router.post('/:employeeId',  canManagePayroll,assignOrUpdateComponent);
 
 // Remove a single component from an employee's structure
 router.delete('/:employeeId/components/:componentId',canManagePayroll, removeComponent);
+router.patch('/:employeeId/components/:componentId', canManagePayroll, editEmployeeComponent);
 
 router.get('/',getMySalaryStructure)
 

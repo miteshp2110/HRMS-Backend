@@ -87,28 +87,47 @@ const setPrimaryApprovalStatus = async (req, res) => {
 };
 
 /**
- * @description [HR/Admin] Gets leave requests awaiting secondary approval.
- * Now includes the name of the primary approver.
+ * @description [HR/Admin] Gets leave requests awaiting secondary approval,
+ * filtered to show only requests from employees with a lower role level.
  */
 const getSecondaryApprovalRequests = async (req, res) => {
+    const approverId = req.user.id;
     let connection;
     try {
       connection = await pool.getConnection();
+
+      // --- NEW: Get the role level of the user making the request ---
+      const [[approverRole]] = await connection.query(
+          'SELECT r.role_level FROM user u JOIN roles r ON u.system_role = r.id WHERE u.id = ?',
+          [approverId]
+      );
+
+      if (!approverRole) {
+          return res.status(403).json({ message: 'Approver role not found.' });
+      }
+      const approverRoleLevel = approverRole.role_level;
+
+      // --- MODIFIED SQL QUERY ---
       const sql = `
         SELECT 
           lr.*, 
           lt.name as leave_type_name, 
           CONCAT(e.first_name, ' ', e.last_name) as employee_name,
-          -- MODIFIED: Added the line below to get the primary approver's name
           CONCAT(pa.first_name, ' ', pa.last_name) as primary_approver_name
         FROM employee_leave_records lr
         JOIN user e ON lr.employee_id = e.id
         JOIN leave_types lt ON lr.leave_type = lt.id
-        -- MODIFIED: Added a LEFT JOIN to the user table again with a new alias 'pa'
         LEFT JOIN user pa ON lr.primary_user = pa.id
-        WHERE lr.primary_status = TRUE AND lr.secondry_status = FALSE AND lr.rejection_reason IS NULL
+        -- NEW JOIN: Get the role of the employee who applied for leave
+        JOIN roles er ON e.system_role = er.id
+        WHERE 
+            lr.primary_status = TRUE 
+            AND lr.secondry_status = FALSE 
+            AND lr.rejection_reason IS NULL
+            -- NEW CONDITION: Ensure the employee's role level is lower (a higher number)
+            AND er.role_level > ?
       `;
-      const [requests] = await connection.query(sql);
+      const [requests] = await connection.query(sql, [approverRoleLevel]);
       res.status(200).json(requests);
     } catch (error) {
       console.error('Error fetching secondary approval requests:', error);
@@ -200,9 +219,76 @@ const setSecondaryApprovalStatus = async (req, res) => {
     }
 };
 
+
+/**
+ * @description Gets the history of leaves approved or rejected by the authenticated user
+ * where the leave period overlaps with the specified date range.
+ */
+const getMyApprovalHistory = async (req, res) => {
+    const approverId = req.user.id;
+    const { startDate, endDate } = req.query;
+
+    if (!startDate || !endDate) {
+        return res.status(400).json({ message: 'startDate and endDate (YYYY-MM-DD) are required.' });
+    }
+
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        const sql = `
+            SELECT 
+                lr.id,
+                lr.leave_description,
+                lr.applied_date,
+                lr.from_date,
+                lr.to_date,
+                lr.rejection_reason,
+                lr.primary_status,
+                lr.secondry_status,
+                lt.name AS leave_type_name,
+                CONCAT(e.first_name, ' ', e.last_name) AS employee_name,
+                CONCAT(pa.first_name, ' ', pa.last_name) AS primary_approver_name,
+                CONCAT(sa.first_name, ' ', sa.last_name) AS secondary_approver_name,
+                CASE
+                    WHEN lr.primary_user = ? THEN 'primary'
+                    WHEN lr.secondry_user = ? THEN 'secondary'
+                    ELSE 'unknown'
+                END AS your_approval_level
+            FROM employee_leave_records lr
+            JOIN leave_types lt ON lr.leave_type = lt.id
+            JOIN user e ON lr.employee_id = e.id
+            LEFT JOIN user pa ON lr.primary_user = pa.id
+            LEFT JOIN user sa ON lr.secondry_user = sa.id
+            WHERE
+                (lr.primary_user = ? OR lr.secondry_user = ?)
+                AND (lr.primary_status = TRUE OR lr.rejection_reason IS NOT NULL)
+                -- MODIFIED: Check for overlapping date ranges instead of applied_date
+                AND (lr.from_date <= ? AND lr.to_date >= ?)
+            ORDER BY lr.from_date DESC;
+        `;
+        
+        const [records] = await connection.query(sql, [
+            approverId,
+            approverId,
+            approverId,
+            approverId,
+            endDate,   // The end of the filter range
+            startDate  // The start of the filter range
+        ]);
+
+        res.status(200).json(records);
+    } catch (error) {
+        console.error('Error fetching approval history:', error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
 module.exports = { 
     getPrimaryApprovalRequests,
     setPrimaryApprovalStatus,
     getSecondaryApprovalRequests,
     setSecondaryApprovalStatus,
+    getMyApprovalHistory
 };

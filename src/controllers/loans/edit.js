@@ -7,9 +7,10 @@ const { pool } = require('../../db/connector');
 const editLoan = async (req, res) => {
     const { loanId } = req.params;
     const fieldsToUpdate = req.body;
+    // console.log(fieldsToUpdate)
 
     // Forbid changing the principal amount to maintain financial integrity
-    delete fieldsToUpdate.principal_amount;
+    // delete fieldsToUpdate.principal_amount;
 
     if (Object.keys(fieldsToUpdate).length === 0) {
         return res.status(400).json({ message: 'At least one field to update is required.' });
