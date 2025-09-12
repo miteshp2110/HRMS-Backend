@@ -12,6 +12,7 @@ const {
   getPayslipsByPayrollId,
   addPayslipComponent
 } = require('../../controllers/payroll/run');
+const { getMyPayslipHistory, getPayslipHistoryByEmployee } = require('../../controllers/payroll/payslips/read');
 
 const router = express.Router();
 router.use(authenticate);
@@ -33,4 +34,6 @@ router.get('/payslip/:payrollId',canManagePayroll,getPayslipsByPayrollId)
 router.put('/payslip/:payslipId/details/:detailId',canManagePayroll,updatePayslipComponent)
 router.delete('/payslip/:payslipId/details/:detailId',canManagePayroll,removePayslipComponent)
 router.post('/payslip/:payslipId/details',canManagePayroll,addPayslipComponent)
+router.get('/history/me',getMyPayslipHistory)
+router.get('/history/employee/:employeeId',canManagePayroll,getPayslipHistoryByEmployee)
 module.exports = router;

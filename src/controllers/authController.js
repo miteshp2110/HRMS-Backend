@@ -28,6 +28,7 @@ const login = async (req, res) => {
         u.email, 
         u.first_name,
         u.last_name,
+        u.profile_url,
         u.password_hash,
         u.salary_visibility,
         r.name AS role_name,
@@ -63,6 +64,7 @@ const login = async (req, res) => {
       role: user.role_name,
       first_name : user.first_name,
       last_name:user.last_name,
+      profile_url : user.profile_url,
       permissions: rows.map(row => row.permission_name).filter(p => p !== null)
     };
 
