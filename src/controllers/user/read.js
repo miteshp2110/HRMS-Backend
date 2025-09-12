@@ -1,15 +1,71 @@
 const { pool } = require('../../db/connector');
 
+// /**
+//  * @description Get a paginated list of all users with essential details.
+//  */
+// const getAllUsers = async (req, res) => {
+//   const { page = 1, limit = 20 } = req.query;
+//   const offset = (parseInt(page) - 1) * parseInt(limit);
+
+//   let connection;
+//   try {
+//     connection = await pool.getConnection();
+//     const sql = `
+//       SELECT 
+//         u.id, u.first_name, u.last_name, u.email, u.phone,
+//         u.profile_url, u.is_active, r.name AS role_name, j.title AS job_title
+//       FROM user u
+//       LEFT JOIN roles r ON u.system_role = r.id
+//       LEFT JOIN jobs j ON u.job_role = j.id
+//       ORDER BY u.first_name, u.last_name
+//       LIMIT ? OFFSET ?;
+//     `;
+//     const [users] = await connection.query(sql, [parseInt(limit), offset]);
+    
+//     const [[{ total }]] = await connection.query('SELECT COUNT(*) as total FROM user');
+
+//     res.status(200).json({
+//       success: true,
+//       pagination: {
+//         total_users: total,
+//         current_page: parseInt(page),
+//         per_page: parseInt(limit),
+//         total_pages: Math.ceil(total / parseInt(limit)),
+//       },
+//       data: users,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching all users:", error);
+//     res.status(500).json({ message: "An internal server error occurred." });
+//   } finally {
+//     if (connection) connection.release();
+//   }
+// };
+
 /**
- * @description Get a paginated list of all users with essential details.
+ * @description Get a paginated list of all users, filtered by the requester's role hierarchy.
  */
 const getAllUsers = async (req, res) => {
   const { page = 1, limit = 20 } = req.query;
+  const requesterId = req.user.id; // The ID of the user making the request
   const offset = (parseInt(page) - 1) * parseInt(limit);
 
   let connection;
   try {
     connection = await pool.getConnection();
+
+    // 1. Get the role level of the user making the request
+    const [[requesterRole]] = await connection.query(
+        'SELECT r.role_level FROM user u JOIN roles r ON u.system_role = r.id WHERE u.id = ?',
+        [requesterId]
+    );
+
+    if (!requesterRole) {
+        return res.status(403).json({ message: 'Could not determine your role level.' });
+    }
+    const requesterLevel = requesterRole.role_level;
+
+    // 2. Build the main query with the hierarchy filter
     const sql = `
       SELECT 
         u.id, u.first_name, u.last_name, u.email, u.phone,
@@ -17,12 +73,20 @@ const getAllUsers = async (req, res) => {
       FROM user u
       LEFT JOIN roles r ON u.system_role = r.id
       LEFT JOIN jobs j ON u.job_role = j.id
+      WHERE r.role_level > ? -- The core hierarchy filter
       ORDER BY u.first_name, u.last_name
       LIMIT ? OFFSET ?;
     `;
-    const [users] = await connection.query(sql, [parseInt(limit), offset]);
+    const [users] = await connection.query(sql, [requesterLevel, parseInt(limit), offset]);
     
-    const [[{ total }]] = await connection.query('SELECT COUNT(*) as total FROM user');
+    // 3. Get the total count of users *that the requester is allowed to see*
+    const countSql = `
+        SELECT COUNT(*) as total 
+        FROM user u 
+        JOIN roles r ON u.system_role = r.id 
+        WHERE r.role_level > ?
+    `;
+    const [[{ total }]] = await connection.query(countSql, [requesterLevel]);
 
     res.status(200).json({
       success: true,
@@ -42,29 +106,106 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+// /**
+//  * @description Searches for users by ID, name, role name, or job title.
+//  * Returns a detailed list of matching users.
+//  */
+// const searchUsers = async (req, res) => {
+//     const { term, inActive } = req.query;
+
+//     if (!term) {
+//         return res.status(400).json({ message: 'A search term is required.' });
+//     }
+    
+//     // --- CORRECTED LOGIC ---
+//     // Query parameters are strings, so we must compare to the string 'true'.
+//     // Defaults to searching for active users (1).
+//     const activityStatus = inActive === 'true' ? 0 : 1;
+
+//     let connection;
+//     try {
+//         connection = await pool.getConnection();
+//         const searchTerm = `%${term}%`;
+        
+//         // --- CORRECTED SQL QUERY ---
+//         // The OR conditions are now wrapped in parentheses.
+//         const sql = `
+//             SELECT 
+//                 u.id,
+//                 u.first_name,
+//                 u.last_name,
+//                 u.email,
+//                 u.is_active,
+//                 u.profile_url,
+//                 r.name AS role_name,
+//                 j.title AS job_title
+//             FROM user u
+//             LEFT JOIN roles r ON u.system_role = r.id
+//             LEFT JOIN jobs j ON u.job_role = j.id
+//             WHERE 
+//                 ( -- Start of grouping parentheses
+//                     u.first_name LIKE ? OR 
+//                     u.last_name LIKE ? OR
+//                     CONCAT(u.first_name, ' ', u.last_name) LIKE ? OR
+//                     r.name LIKE ? OR
+//                     j.title LIKE ? OR
+//                     u.id = ?
+//                 ) -- End of grouping parentheses
+//                 AND u.is_active = ?;
+//         `;
+        
+//         const [users] = await connection.query(sql, [
+//             searchTerm, 
+//             searchTerm, 
+//             searchTerm,
+//             searchTerm, 
+//             searchTerm, 
+//             term, // For exact ID match
+//             activityStatus // This filter now applies to the entire search
+//         ]);
+        
+//         res.status(200).json(users);
+//     } catch (error) {
+//         console.error("Error searching users:", error);
+//         res.status(500).json({ message: "An internal server error occurred." });
+//     } finally {
+//         if (connection) connection.release();
+//     }
+// };
+
+
 /**
- * @description Searches for users by ID, name, role name, or job title.
- * Returns a detailed list of matching users.
+ * @description Searches for users by ID, name, role, or job title,
+ * respecting the role hierarchy of the requester.
  */
 const searchUsers = async (req, res) => {
     const { term, inActive } = req.query;
+    const requesterId = req.user.id; // The ID of the user performing the search
 
     if (!term) {
         return res.status(400).json({ message: 'A search term is required.' });
     }
     
-    // --- CORRECTED LOGIC ---
-    // Query parameters are strings, so we must compare to the string 'true'.
-    // Defaults to searching for active users (1).
     const activityStatus = inActive === 'true' ? 0 : 1;
 
     let connection;
     try {
         connection = await pool.getConnection();
-        const searchTerm = `%${term}%`;
         
-        // --- CORRECTED SQL QUERY ---
-        // The OR conditions are now wrapped in parentheses.
+        // --- NEW: Get the role level of the user making the request ---
+        const [[requesterRole]] = await connection.query(
+            'SELECT r.role_level FROM user u JOIN roles r ON u.system_role = r.id WHERE u.id = ?',
+            [requesterId]
+        );
+
+        if (!requesterRole) {
+            // This should not happen for a logged-in user, but it's a good safety check
+            return res.status(403).json({ message: 'Could not determine your role level.' });
+        }
+        const requesterLevel = requesterRole.role_level;
+
+        // --- MODIFIED SQL QUERY ---
+        const searchTerm = `%${term}%`;
         const sql = `
             SELECT 
                 u.id,
@@ -79,25 +220,24 @@ const searchUsers = async (req, res) => {
             LEFT JOIN roles r ON u.system_role = r.id
             LEFT JOIN jobs j ON u.job_role = j.id
             WHERE 
-                ( -- Start of grouping parentheses
+                ( -- Search conditions are grouped
                     u.first_name LIKE ? OR 
                     u.last_name LIKE ? OR
                     CONCAT(u.first_name, ' ', u.last_name) LIKE ? OR
                     r.name LIKE ? OR
                     j.title LIKE ? OR
                     u.id = ?
-                ) -- End of grouping parentheses
-                AND u.is_active = ?;
+                ) 
+                AND u.is_active = ?
+                -- NEW HIERARCHY FILTER: Only show users with a lower rank (higher role_level number)
+                AND r.role_level > ?; 
         `;
         
         const [users] = await connection.query(sql, [
-            searchTerm, 
-            searchTerm, 
-            searchTerm,
-            searchTerm, 
-            searchTerm, 
-            term, // For exact ID match
-            activityStatus // This filter now applies to the entire search
+            searchTerm, searchTerm, searchTerm,
+            searchTerm, searchTerm, term,
+            activityStatus,
+            requesterLevel // Add the requester's level to the query parameters
         ]);
         
         res.status(200).json(users);
@@ -108,6 +248,7 @@ const searchUsers = async (req, res) => {
         if (connection) connection.release();
     }
 };
+
 
 
 /**
