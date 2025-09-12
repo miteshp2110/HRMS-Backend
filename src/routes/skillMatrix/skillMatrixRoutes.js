@@ -9,6 +9,7 @@ const {
   getApprovalRequests,
   approveOrRejectRequest,
   getEmployeeSkills,
+  getVerifiedEmployeesBySkill,
 } = require('../../controllers/skillMatrix');
 
 const router = express.Router();
@@ -23,6 +24,7 @@ router.get('/my-requests', getMySkillRequests); // Employee gets their own reque
 router.patch('/:requestId', updateSkillRequest); // Employee updates their own PENDING request
 router.delete('/:requestId', deleteSkillRequest); // Employee deletes their own PENDING request
 
+router.get('/skills/:skillName/employees',canManageSkills,getVerifiedEmployeesBySkill)
 // --- Manager Routes (Approval Workflow) ---
 router.get('/approvals', canManageSkills,getApprovalRequests); // Manager gets requests for their direct reports
 router.patch('/approvals/:requestId', canManageSkills,approveOrRejectRequest); // Manager approves/rejects a request

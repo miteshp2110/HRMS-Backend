@@ -1,6 +1,7 @@
 const express = require('express')
 const app = express()
 const cors = require('cors')
+
 const authRoutes = require('./routes/authRoutes')
 const userRoutes = require('./routes/user/userRoutes')
 const roleRoutes = require('./routes/roles/roleRoutes')
@@ -11,9 +12,14 @@ const { getAllPermissions } = require('./controllers/roles')
 const authenticate = require('./middleware/authenticate')
 const authorize = require('./middleware/authorize')
 
-
-app.use(express.json())
+// set JSON limit here
 app.use(cors())
+app.use(express.json({ limit: "50mb" }))
+app.use(express.urlencoded({ limit: "50mb", extended: true }))
+
+
+
+
 
 
 app.use('/api/auth',authRoutes)

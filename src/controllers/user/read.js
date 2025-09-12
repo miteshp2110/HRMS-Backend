@@ -47,19 +47,24 @@ const getAllUsers = async (req, res) => {
  * Returns a detailed list of matching users.
  */
 const searchUsers = async (req, res) => {
-    const { term } = req.query;
+    const { term, inActive } = req.query;
 
     if (!term) {
         return res.status(400).json({ message: 'A search term is required.' });
     }
+    
+    // --- CORRECTED LOGIC ---
+    // Query parameters are strings, so we must compare to the string 'true'.
+    // Defaults to searching for active users (1).
+    const activityStatus = inActive === 'true' ? 0 : 1;
 
     let connection;
     try {
         connection = await pool.getConnection();
         const searchTerm = `%${term}%`;
         
-        // This query now joins with roles and jobs to search by their names
-        // and includes their details in the final output.
+        // --- CORRECTED SQL QUERY ---
+        // The OR conditions are now wrapped in parentheses.
         const sql = `
             SELECT 
                 u.id,
@@ -74,12 +79,15 @@ const searchUsers = async (req, res) => {
             LEFT JOIN roles r ON u.system_role = r.id
             LEFT JOIN jobs j ON u.job_role = j.id
             WHERE 
-                u.first_name LIKE ? OR 
-                u.last_name LIKE ? OR
-                CONCAT(u.first_name, ' ', u.last_name) LIKE ? OR
-                r.name LIKE ? OR
-                j.title LIKE ? OR
-                u.id = ?;
+                ( -- Start of grouping parentheses
+                    u.first_name LIKE ? OR 
+                    u.last_name LIKE ? OR
+                    CONCAT(u.first_name, ' ', u.last_name) LIKE ? OR
+                    r.name LIKE ? OR
+                    j.title LIKE ? OR
+                    u.id = ?
+                ) -- End of grouping parentheses
+                AND u.is_active = ?;
         `;
         
         const [users] = await connection.query(sql, [
@@ -88,7 +96,8 @@ const searchUsers = async (req, res) => {
             searchTerm,
             searchTerm, 
             searchTerm, 
-            term // For exact ID match
+            term, // For exact ID match
+            activityStatus // This filter now applies to the entire search
         ]);
         
         res.status(200).json(users);

@@ -56,4 +56,40 @@ const getRoleById = async (req, res) => {
   }
 };
 
-module.exports = { getAllRoles, getRoleById };
+
+/**
+ * @description Gets all employees belonging to a specific role.
+ */
+const getEmployeesByRole = async (req, res) => {
+    const { roleId } = req.params;
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        
+        // This query finds all users with a specific system_role
+        // and joins the jobs table to get the readable job title.
+        const sql = `
+            SELECT 
+                u.id,
+                CONCAT(u.first_name, ' ', u.last_name) AS name,
+                u.profile_url,
+                j.title AS job_title
+            FROM user u
+            LEFT JOIN jobs j ON u.job_role = j.id
+            WHERE 
+                u.system_role = ? 
+                AND u.is_active = TRUE
+            ORDER BY name ASC;
+        `;
+        
+        const [employees] = await connection.query(sql, [roleId]);
+        res.status(200).json(employees);
+    } catch (error) {
+        console.error(`Error fetching employees for role ${roleId}:`, error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+module.exports = { getAllRoles, getRoleById, getEmployeesByRole };

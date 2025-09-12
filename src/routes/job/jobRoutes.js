@@ -6,6 +6,7 @@ const {
   getAllJobs,
   updateJob,
   deleteJob,
+  getEmployeesByJob,
 } = require('../../controllers/jobs');
 
 const router = express.Router();
@@ -20,5 +21,6 @@ router.post('/',  createJob);
 router.get('/',  getAllJobs);
 router.patch('/:id',  updateJob);
 router.delete('/:id',  deleteJob);
+router.get('/:jobId/employees',getEmployeesByJob)
 
 module.exports = router;

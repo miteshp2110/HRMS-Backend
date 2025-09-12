@@ -8,7 +8,7 @@ const {
   getApprovalRequests,
   approveOrRejectRequest,
 } = require('./approval');
-const { getEmployeeSkills } = require('./read');
+const { getEmployeeSkills, getVerifiedEmployeesBySkill } = require('./read');
 
 module.exports = {
   createSkillRequest,
@@ -17,5 +17,6 @@ module.exports = {
   deleteSkillRequest,
   getApprovalRequests,
   approveOrRejectRequest,
-  getEmployeeSkills
+  getEmployeeSkills,
+  getVerifiedEmployeesBySkill
 };

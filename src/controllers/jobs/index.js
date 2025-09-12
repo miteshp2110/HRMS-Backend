@@ -1,5 +1,5 @@
 const { createJob } = require('./create');
-const { getAllJobs } = require('./read');
+const { getAllJobs, getEmployeesByJob } = require('./read');
 const { updateJob } = require('./update');
 const { deleteJob } = require('./delete');
 
@@ -8,4 +8,5 @@ module.exports = {
   getAllJobs,
   updateJob,
   deleteJob,
+  getEmployeesByJob
 };

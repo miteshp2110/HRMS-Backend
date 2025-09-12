@@ -91,6 +91,7 @@ const getExpiringDocuments = async (req, res) => {
       FROM uploaded_document ud
       JOIN required_documents rd ON ud.document_id = rd.id
       JOIN user u ON ud.user_id = u.id
+      AND u.is_active = 1
       WHERE ud.expiry_date BETWEEN ? AND ?
       ORDER BY ud.expiry_date ASC;
     `;
