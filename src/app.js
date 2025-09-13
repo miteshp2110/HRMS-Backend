@@ -96,4 +96,9 @@ app.use('/api/summary',require('./routes/summary/summaryRoutes'))
 //Dashboard
 
 app.use('/api/dashboard',require('./routes/dashboard/dashboardRoutes'))
+
+
+//Reports
+
+app.use('/api/reports',require('./routes/reports/reportRoutes'))
 module.exports = app
