@@ -30,7 +30,7 @@ const requestLoan = async (req, res) => {
         JOIN payroll_components pc ON ess.component_id = pc.id
         WHERE ess.employee_id = ? 
         AND ess.value_type = 'fixed' 
-        AND pc.id = 1
+        AND pc.id = 5
       `;
       const [[basicSalary]] = await connection.query(salarySql, [employeeId]);
 
