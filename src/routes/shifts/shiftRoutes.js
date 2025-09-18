@@ -6,6 +6,7 @@ const {
   getAllShifts,
   updateShift,
   deleteShift,
+  rotateIndividualShifts,
 } = require('../../controllers/shifts');
 
 const router = express.Router();
@@ -14,6 +15,7 @@ router.use(authenticate);
 const canManageShifts = authorize(['shift.manage'])
 
 // We'll use the 'manage_shifts' permission for CUD actions
+router.post("/rotate/batch",rotateIndividualShifts)
 router.post('/', canManageShifts, createShift);
 router.get('/', canManageShifts, getAllShifts);
 router.patch('/:id', canManageShifts, updateShift);

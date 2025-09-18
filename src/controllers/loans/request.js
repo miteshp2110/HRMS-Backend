@@ -21,6 +21,7 @@ const requestLoan = async (req, res) => {
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
+    // pc.id = 5 for beta
     // --- NEW: Validation for Salary Advance ---
     if (loan_type === 'advance') {
       // Find the employee's basic salary from their salary structure.
@@ -30,7 +31,7 @@ const requestLoan = async (req, res) => {
         JOIN payroll_components pc ON ess.component_id = pc.id
         WHERE ess.employee_id = ? 
         AND ess.value_type = 'fixed' 
-        AND pc.id = 5
+        AND pc.id = 1
       `;
       const [[basicSalary]] = await connection.query(salarySql, [employeeId]);
 

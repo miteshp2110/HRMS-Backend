@@ -3,7 +3,7 @@ const authenticate = require('../../middleware/authenticate');
 const authorize = require('../../middleware/authorize');
 const upload = require('../../middleware/uploadMiddleware');
 const { createUser /*, other controllers */ } = require('../../controllers/user/userController');
-const { updateUser, getMyProfile, getUserProfileById, getAllUsers, searchUsers, findUsersByPermissions, getDirectReports, updateSelfProfile } = require('../../controllers/user');
+const { updateUser, getMyProfile, getUserProfileById, getAllUsers, searchUsers, findUsersByPermissions, getDirectReports, updateSelfProfile, deactivateUser, getUserAuditHistory } = require('../../controllers/user');
 
 const router = express.Router();
 const canManageUser = authorize(['user.manage']);
@@ -36,5 +36,7 @@ router.get('/profiles/all',authenticate,canManageUser,getAllUsers)
 router.get('/search',authenticate,canManageUser,searchUsers)
 router.get('/permissions',authenticate,canManageUser,findUsersByPermissions)
 router.get('/reports/:managerId',authenticate,getDirectReports)
+router.patch('/deactivate/:id', authenticate, canManageUser, deactivateUser);
+router.get('/audit/:userId',authenticate,canManageUser,getUserAuditHistory)
 
 module.exports = router;

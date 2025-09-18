@@ -19,9 +19,6 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }))
 
 
 
-
-
-
 app.use('/api/auth',authRoutes)
 
 // User Routes
@@ -101,4 +98,6 @@ app.use('/api/dashboard',require('./routes/dashboard/dashboardRoutes'))
 //Reports
 
 app.use('/api/reports',require('./routes/reports/reportRoutes'))
+
+app.use("/api/settings/name-series",require('./routes/nameSeriesRoutes'))
 module.exports = app

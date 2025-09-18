@@ -70,19 +70,18 @@ const getDocumentsByEmployeeId = async (req, res) => {
 };
 
 
+
 /**
- * @description [Admin] Gets a list of all uploaded documents that are expiring within the next two months.
+ * @description [Admin] Gets a list of all uploaded documents that are expiring based on their individual reminder thresholds.
  */
 const getExpiringDocuments = async (req, res) => {
   let connection;
   try {
-    // Calculate the date range: from today to two months from now
-    const today = DateTime.now().toISODate(); // e.g., '2025-09-05'
-    const twoMonthsFromNow = DateTime.now().plus({ months: 2 }).toISODate();
-
     connection = await pool.getConnection();
+    // This query now dynamically calculates the expiration window for each document
+    // based on the 'reminder_threshold' (in months) set for that document type.
     const sql = `
-      SELECT 
+      SELECT
         ud.id,
         ud.upload_link,
         ud.expiry_date,
@@ -91,11 +90,12 @@ const getExpiringDocuments = async (req, res) => {
       FROM uploaded_document ud
       JOIN required_documents rd ON ud.document_id = rd.id
       JOIN user u ON ud.user_id = u.id
-      AND u.is_active = 1
-      WHERE ud.expiry_date BETWEEN ? AND ?
+      WHERE
+        u.is_active = 1
+        AND ud.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL rd.reminder_threshold MONTH)
       ORDER BY ud.expiry_date ASC;
     `;
-    const [documents] = await connection.query(sql, [today, twoMonthsFromNow]);
+    const [documents] = await connection.query(sql);
 
     res.status(200).json(documents);
   } catch (error) {
@@ -105,7 +105,6 @@ const getExpiringDocuments = async (req, res) => {
     if (connection) connection.release();
   }
 };
-
 
 module.exports = { getAllDocuments ,getMyDocuments,
   getDocumentsByEmployeeId,getExpiringDocuments};
