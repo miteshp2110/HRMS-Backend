@@ -79,15 +79,16 @@ const { uploadProfileImage } = require('../../services/s3Service');
  */
 const createUser = async (req, res) => {
   const {
-    employee_id, firstName, lastName, dob, email, phone, password, gender,
+    id, firstName, lastName, dob, email, phone, password, gender,
     emergencyContactName, emergencyContactRelation, emergencyContactNumber,
     joiningDate, systemRole, jobRole, shift, reportsTo, isProbation, nationality
   } = req.body;
 
-  if (!employee_id || !firstName || !lastName || !email || !password || !joiningDate || !systemRole || !shift) {
+  if (!id || !firstName || !lastName || !email || !password || !joiningDate || !systemRole || !shift) {
     return res.status(400).json({ message: 'Missing required fields.' });
   }
 
+  console.log(id)
   const createdBy = req.user.id;
   let connection;
 
@@ -112,13 +113,13 @@ const createUser = async (req, res) => {
 
     const insertSql = `
       INSERT INTO user (
-        employee_id, first_name, last_name, dob, email, phone, password_hash, profile_url, gender,
+        id, first_name, last_name, dob, email, phone, password_hash, profile_url, gender,
         emergency_contact_name, emergency_contact_relation, emergency_contact_number,
         joining_date, system_role, job_role, shift, reports_to, created_by, is_probation, nationality
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `;
     const [result] = await connection.query(insertSql, [
-      employee_id, firstName, lastName, dob, email, phone, passwordHash, profileUrl, gender,
+      id, firstName, lastName, dob, email, phone, passwordHash, profileUrl, gender,
       emergencyContactName, emergencyContactRelation, emergencyContactNumber,
       joiningDate, systemRole, jobRole, shift, reportsTo, createdBy, isProbation, nationality
     ]);

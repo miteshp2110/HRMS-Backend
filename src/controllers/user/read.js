@@ -101,104 +101,105 @@
 //   }
 // };
 
-// /**
-//  * @description Searches for users by ID, name, role, or job title.
-//  * Bypasses the role hierarchy filter if the requester has all available permissions.
-//  */
-// const searchUsers = async (req, res) => {
-//     const { term, inActive } = req.query;
-//     const requesterId = req.user.id;
+/**
+ * @description Searches for users by ID, name, role, or job title.
+ * Bypasses the role hierarchy filter if the requester has all available permissions.
+ */
+const searchUsers = async (req, res) => {
+    const { term, inActive } = req.query;
+    const requesterId = req.user.id;
 
-//     if (!term) {
-//         return res.status(400).json({ message: 'A search term is required.' });
-//     }
+    if (!term) {
+        return res.status(400).json({ message: 'A search term is required.' });
+    }
 
-//     const activityStatus = inActive === 'true' ? 0 : 1;
+    const activityStatus = inActive === 'true' ? 0 : 1;
 
-//     let connection;
-//     try {
-//         connection = await pool.getConnection();
+    let connection;
+    try {
+        connection = await pool.getConnection();
 
-//         // 1. Get the requester's role ID and role level in one query
-//         const [[requesterInfo]] = await connection.query(
-//             'SELECT u.system_role, r.role_level FROM user u JOIN roles r ON u.system_role = r.id WHERE u.id = ?',
-//             [requesterId]
-//         );
+        // 1. Get the requester's role ID and role level in one query
+        const [[requesterInfo]] = await connection.query(
+            'SELECT u.system_role, r.role_level FROM user u JOIN roles r ON u.system_role = r.id WHERE u.id = ?',
+            [requesterId]
+        );
 
-//         if (!requesterInfo) {
-//             return res.status(403).json({ message: 'Could not determine your role level.' });
-//         }
-//         const requesterLevel = requesterInfo.role_level;
-//         const requesterRole = requesterInfo.system_role;
+        if (!requesterInfo) {
+            return res.status(403).json({ message: 'Could not determine your role level.' });
+        }
+        const requesterLevel = requesterInfo.role_level;
+        const requesterRole = requesterInfo.system_role;
 
-//         // 2. Check if the requester is a "super admin"
-//         const [[{ total_permissions }]] = await connection.query('SELECT COUNT(*) as total_permissions FROM permissions');
-//         const [[{ user_permissions }]] = await connection.query(
-//             'SELECT COUNT(*) as user_permissions FROM role_permissions WHERE role = ?', [requesterRole]
-//         );
-//         const isSuperAdmin = total_permissions > 0 && total_permissions === user_permissions;
+        // 2. Check if the requester is a "super admin"
+        const [[{ total_permissions }]] = await connection.query('SELECT COUNT(*) as total_permissions FROM permissions');
+        const [[{ user_permissions }]] = await connection.query(
+            'SELECT COUNT(*) as user_permissions FROM role_permissions WHERE role = ?', [requesterRole]
+        );
+        const isSuperAdmin = total_permissions > 0 && total_permissions === user_permissions;
 
-//         // 3. Dynamically build the final part of the WHERE clause
-//         let hierarchyFilterSql = '';
-//         const hierarchyParams = [];
+        // 3. Dynamically build the final part of the WHERE clause
+        let hierarchyFilterSql = '';
+        const hierarchyParams = [];
 
-//         if (!isSuperAdmin) {
-//             // If not a super admin, add the hierarchy filter
-//             hierarchyFilterSql = 'AND r.role_level > ?';
-//             hierarchyParams.push(requesterLevel);
-//         }
+        if (!isSuperAdmin) {
+            // If not a super admin, add the hierarchy filter
+            hierarchyFilterSql = 'AND r.role_level > ?';
+            hierarchyParams.push(requesterLevel);
+        }
 
-//         // 4. Build and execute the full query
-//         const searchTerm = `%${term}%`;
-//         const sql = `
-//             SELECT
-//                 u.id, u.first_name, u.last_name, u.dob, u.email, u.phone, u.profile_url, u.gender,
-//                 u.emergency_contact_name, u.emergency_contact_relation, u.emergency_contact_number,
-//                 u.joining_date, u.salary_visibility, u.is_signed, u.is_active, u.inactive_date, u.inactive_reason,
-//                 u.is_probation, u.is_payroll_exempt, u.nationality, u.created_at, u.updated_at,
-//                 r.name AS role_name,
-//                 j.title AS job_title,
-//                 ns.prefix as name_series_prefix,
-//                 CONCAT(manager.first_name, ' ', manager.last_name) as reports_to_name,
-//                 CONCAT(creator.first_name, ' ', creator.last_name) as created_by_name,
-//                 CONCAT(inactivator.first_name, ' ', inactivator.last_name) as inactivated_by_name
-//             FROM user u
-//             LEFT JOIN roles r ON u.system_role = r.id
-//             LEFT JOIN jobs j ON u.job_role = j.id
-//             LEFT JOIN name_series ns ON ns.table_name = 'user'
-//             LEFT JOIN user manager ON u.reports_to = manager.id
-//             LEFT JOIN user creator ON u.created_by = creator.id
-//             LEFT JOIN user inactivator ON u.inactivated_by = inactivator.id
-//             WHERE
-//                 (
-//                     u.first_name LIKE ? OR
-//                     u.last_name LIKE ? OR
-//                     CONCAT(u.first_name, ' ', u.last_name) LIKE ? OR
-//                     r.name LIKE ? OR
-//                     j.title LIKE ? OR
-//                     u.id = ?
-//                 )
-//                 AND u.is_active = ?
-//                 ${hierarchyFilterSql};
-//         `;
+        // 4. Build and execute the full query
+        const searchTerm = `%${term}%`;
+        const sql = `
+            SELECT
+                u.id, u.first_name, u.last_name, u.dob, u.email, u.phone, u.profile_url, u.gender,
+                u.emergency_contact_name, u.emergency_contact_relation, u.emergency_contact_number,
+                u.joining_date, u.salary_visibility, u.is_signed, u.is_active, u.inactive_date, u.inactive_reason,
+                u.is_probation, u.is_payroll_exempt, u.nationality, u.created_at, u.updated_at,
+                r.name AS role_name,
+                j.title AS job_title,
+                ns.prefix as name_series_prefix,
+                CONCAT(manager.first_name, ' ', manager.last_name) as reports_to_name,
+                CONCAT(creator.first_name, ' ', creator.last_name) as created_by_name,
+                CONCAT(inactivator.first_name, ' ', inactivator.last_name) as inactivated_by_name,
+                CONCAT(ns.prefix, LPAD(u.id, ns.padding_length, '0')) as full_employee_id
+            FROM user u
+            LEFT JOIN roles r ON u.system_role = r.id
+            LEFT JOIN jobs j ON u.job_role = j.id
+            LEFT JOIN name_series ns ON ns.table_name = 'user'
+            LEFT JOIN user manager ON u.reports_to = manager.id
+            LEFT JOIN user creator ON u.created_by = creator.id
+            LEFT JOIN user inactivator ON u.inactivated_by = inactivator.id
+            WHERE
+                (
+                    u.first_name LIKE ? OR
+                    u.last_name LIKE ? OR
+                    CONCAT(u.first_name, ' ', u.last_name) LIKE ? OR
+                    r.name LIKE ? OR
+                    j.title LIKE ? OR
+                    u.id = ?
+                )
+                AND u.is_active = ?
+                ${hierarchyFilterSql};
+        `;
 
-//         const finalParams = [
-//             searchTerm, searchTerm, searchTerm,
-//             searchTerm, searchTerm, term,
-//             activityStatus,
-//             ...hierarchyParams // Add the requesterLevel only if it's needed
-//         ];
+        const finalParams = [
+            searchTerm, searchTerm, searchTerm,
+            searchTerm, searchTerm, term,
+            activityStatus,
+            ...hierarchyParams // Add the requesterLevel only if it's needed
+        ];
 
-//         const [users] = await connection.query(sql, finalParams);
+        const [users] = await connection.query(sql, finalParams);
 
-//         res.status(200).json(users);
-//     } catch (error) {
-//         console.error("Error searching users:", error);
-//         res.status(500).json({ message: "An internal server error occurred." });
-//     } finally {
-//         if (connection) connection.release();
-//     }
-// };
+        res.status(200).json(users);
+    } catch (error) {
+        console.error("Error searching users:", error);
+        res.status(500).json({ message: "An internal server error occurred." });
+    } finally {
+        if (connection) connection.release();
+    }
+};
 
 
 
@@ -385,91 +386,91 @@ const getAllUsers = async (req, res) => {
 };
 
 
-/**
- * @description Searches for users by ID, name, role, or job title.
- * Bypasses the role hierarchy filter if the requester has all available permissions.
- */
-const searchUsers = async (req, res) => {
-    const { term, inActive } = req.query;
-    const requesterId = req.user.id;
+// /**
+//  * @description Searches for users by ID, name, role, or job title.
+//  * Bypasses the role hierarchy filter if the requester has all available permissions.
+//  */
+// const searchUsers = async (req, res) => {
+//     const { term, inActive } = req.query;
+//     const requesterId = req.user.id;
 
-    if (!term) {
-        return res.status(400).json({ message: 'A search term is required.' });
-    }
+//     if (!term) {
+//         return res.status(400).json({ message: 'A search term is required.' });
+//     }
 
-    const activityStatus = inActive === 'true' ? 0 : 1;
+//     const activityStatus = inActive === 'true' ? 0 : 1;
 
-    let connection;
-    try {
-        connection = await pool.getConnection();
+//     let connection;
+//     try {
+//         connection = await pool.getConnection();
 
-        const [[requesterInfo]] = await connection.query(
-            'SELECT u.system_role, r.role_level FROM user u JOIN roles r ON u.system_role = r.id WHERE u.id = ?',
-            [requesterId]
-        );
+//         const [[requesterInfo]] = await connection.query(
+//             'SELECT u.system_role, r.role_level FROM user u JOIN roles r ON u.system_role = r.id WHERE u.id = ?',
+//             [requesterId]
+//         );
 
-        if (!requesterInfo) {
-            return res.status(403).json({ message: 'Could not determine your role level.' });
-        }
-        const requesterLevel = requesterInfo.role_level;
-        const requesterRole = requesterInfo.system_role;
+//         if (!requesterInfo) {
+//             return res.status(403).json({ message: 'Could not determine your role level.' });
+//         }
+//         const requesterLevel = requesterInfo.role_level;
+//         const requesterRole = requesterInfo.system_role;
 
-        const [[{ total_permissions }]] = await connection.query('SELECT COUNT(*) as total_permissions FROM permissions');
-        const [[{ user_permissions }]] = await connection.query(
-            'SELECT COUNT(*) as user_permissions FROM role_permissions WHERE role = ?', [requesterRole]
-        );
-        const isSuperAdmin = total_permissions > 0 && total_permissions === user_permissions;
+//         const [[{ total_permissions }]] = await connection.query('SELECT COUNT(*) as total_permissions FROM permissions');
+//         const [[{ user_permissions }]] = await connection.query(
+//             'SELECT COUNT(*) as user_permissions FROM role_permissions WHERE role = ?', [requesterRole]
+//         );
+//         const isSuperAdmin = total_permissions > 0 && total_permissions === user_permissions;
 
-        let hierarchyFilterSql = '';
-        const hierarchyParams = [];
+//         let hierarchyFilterSql = '';
+//         const hierarchyParams = [];
 
-        if (!isSuperAdmin) {
-            hierarchyFilterSql = 'AND r.role_level > ?';
-            hierarchyParams.push(requesterLevel);
-        }
+//         if (!isSuperAdmin) {
+//             hierarchyFilterSql = 'AND r.role_level > ?';
+//             hierarchyParams.push(requesterLevel);
+//         }
 
-        const searchTerm = `%${term}%`;
-        const sql = `
-            SELECT
-                u.id,
-                u.first_name,
-                u.last_name,
-                u.profile_url,
-                CONCAT(ns.prefix, LPAD(u.id, ns.padding_length, '0')) as full_employee_id
-            FROM user u
-            LEFT JOIN roles r ON u.system_role = r.id
-            LEFT JOIN jobs j ON u.job_role = j.id
-            LEFT JOIN name_series ns ON ns.table_name = 'user'
-            WHERE
-                (
-                    u.first_name LIKE ? OR
-                    u.last_name LIKE ? OR
-                    CONCAT(u.first_name, ' ', u.last_name) LIKE ? OR
-                    r.name LIKE ? OR
-                    j.title LIKE ? OR
-                    u.id = ?
-                )
-                AND u.is_active = ?
-                ${hierarchyFilterSql};
-        `;
+//         const searchTerm = `%${term}%`;
+//         const sql = `
+//             SELECT
+//                 u.id,
+//                 u.first_name,
+//                 u.last_name,
+//                 u.profile_url,
+//                 CONCAT(ns.prefix, LPAD(u.id, ns.padding_length, '0')) as full_employee_id
+//             FROM user u
+//             LEFT JOIN roles r ON u.system_role = r.id
+//             LEFT JOIN jobs j ON u.job_role = j.id
+//             LEFT JOIN name_series ns ON ns.table_name = 'user'
+//             WHERE
+//                 (
+//                     u.first_name LIKE ? OR
+//                     u.last_name LIKE ? OR
+//                     CONCAT(u.first_name, ' ', u.last_name) LIKE ? OR
+//                     r.name LIKE ? OR
+//                     j.title LIKE ? OR
+//                     u.id = ?
+//                 )
+//                 AND u.is_active = ?
+//                 ${hierarchyFilterSql};
+//         `;
 
-        const finalParams = [
-            searchTerm, searchTerm, searchTerm,
-            searchTerm, searchTerm, term,
-            activityStatus,
-            ...hierarchyParams
-        ];
+//         const finalParams = [
+//             searchTerm, searchTerm, searchTerm,
+//             searchTerm, searchTerm, term,
+//             activityStatus,
+//             ...hierarchyParams
+//         ];
 
-        const [users] = await connection.query(sql, finalParams);
+//         const [users] = await connection.query(sql, finalParams);
 
-        res.status(200).json(users);
-    } catch (error) {
-        console.error("Error searching users:", error);
-        res.status(500).json({ message: "An internal server error occurred." });
-    } finally {
-        if (connection) connection.release();
-    }
-};
+//         res.status(200).json(users);
+//     } catch (error) {
+//         console.error("Error searching users:", error);
+//         res.status(500).json({ message: "An internal server error occurred." });
+//     } finally {
+//         if (connection) connection.release();
+//     }
+// };
 
 /**
  * @description Finds users whose roles have a specific set of permissions, passed via query parameters.
