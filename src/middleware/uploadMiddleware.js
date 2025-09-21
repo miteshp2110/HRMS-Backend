@@ -5,7 +5,8 @@ const storage = multer.memoryStorage();
 
 // File filter to allow only images
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+  console.log(file.mimetype)
+  if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf' || file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
     cb(null, true); // Accept image or pdf
   } else {
     cb(new Error('Invalid file type. Only images and PDFs are allowed.'), false); // Reject

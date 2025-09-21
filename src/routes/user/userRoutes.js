@@ -3,7 +3,7 @@ const authenticate = require('../../middleware/authenticate');
 const authorize = require('../../middleware/authorize');
 const upload = require('../../middleware/uploadMiddleware');
 const { createUser /*, other controllers */ } = require('../../controllers/user/userController');
-const { updateUser, getMyProfile, getUserProfileById, getAllUsers, searchUsers, findUsersByPermissions, getDirectReports, updateSelfProfile, deactivateUser, getUserAuditHistory } = require('../../controllers/user');
+const { updateUser, getMyProfile, getUserProfileById, getAllUsers, searchUsers, findUsersByPermissions, getDirectReports, updateSelfProfile, deactivateUser, getUserAuditHistory, bulkUploadUsers, generateUserUploadTemplate } = require('../../controllers/user');
 
 const router = express.Router();
 const canManageUser = authorize(['user.manage']);
@@ -12,6 +12,10 @@ const canManageUser = authorize(['user.manage']);
 
 // POST /api/users
 // Creates a new user. Requires 'users.create' permission.
+
+router.get('/template', authenticate, canManageUser, generateUserUploadTemplate);
+router.post('/bulk-upload', authenticate, canManageUser, upload.single('file'), bulkUploadUsers);
+
 router.post(
   '/',
   authenticate,
