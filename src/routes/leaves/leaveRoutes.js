@@ -17,6 +17,9 @@ const {
   getLeaveBalancesByEmployee,
   getLeaveRecordsByEmployee,
   getMyApprovalHistory,
+  getLeaveRecordById,
+  downloadLeaveApplication,
+  getLeaveLedgerByEmployee,
 } = require('../../controllers/leaves');
 
 const router = express.Router();
@@ -44,5 +47,9 @@ router.post("/secondry-approval/:recordId",canManageLeaves,setSecondaryApprovalS
 router.get('/balance/:employeeId',canManageLeaves,getLeaveBalancesByEmployee)
 router.get('/records/:employeeId',canManageLeaves,getLeaveRecordsByEmployee)
 router.get('/history',getMyApprovalHistory)
+
+router.get('/:id',getLeaveRecordById)
+router.get('/download/:id',downloadLeaveApplication)
+router.get('/ledger/:employeeId',canManageLeaves,getLeaveLedgerByEmployee)
 
 module.exports = router;

@@ -7,6 +7,8 @@ const {
   updateShift,
   deleteShift,
   rotateIndividualShifts,
+  getActiveUsersByShift,
+  getUsersWithUnmarkedAttendance,
 } = require('../../controllers/shifts');
 
 const router = express.Router();
@@ -15,6 +17,8 @@ router.use(authenticate);
 const canManageShifts = authorize(['shift.manage'])
 
 // We'll use the 'manage_shifts' permission for CUD actions
+router.get('/:shiftId/unmarked-attendance/:date',getUsersWithUnmarkedAttendance)
+router.get('/:shiftId/users',getActiveUsersByShift)
 router.post("/rotate/batch",rotateIndividualShifts)
 router.post('/', canManageShifts, createShift);
 router.get('/', canManageShifts, getAllShifts);

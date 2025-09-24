@@ -19,6 +19,7 @@ const {
   getAttendanceAuditHistory,
   getOvertimeAuditHistory,
   getOvertimeRequestsForApprovalForId,
+  bulkCreateAttendance,
   
 } = require('../../controllers/attendance');
 
@@ -36,7 +37,7 @@ router.get('/:recordId', canManageAttendance, getAttendanceRecordById);
 router.get('/summary/:employeeId/:year/:month', canManageAttendance, getEmployeeMonthlySummary);
 router.post('/punch-in',canManageAttendance, punchIn);
 router.post('/punch-out',canManageAttendance, punchOut);
-
+router.post("/bulk",canManageAttendance,bulkCreateAttendance)
 // router.post('/update/pay-type/:recordId',canManageAttendance,updatePayType)
 
 // router.post('/update/overtime/:recordId',canManageAttendance,approveOvertime)
