@@ -31,10 +31,10 @@ router.use(authenticate)
 
 const canManageAttendance = authorize(['attendance.manage']);
 
-router.get('/all',canManageAttendance,getAttendanceRecords)
+router.get('/all',getAttendanceRecords) // managed
 router.get('/me',getMyAttendance)
 router.get('/:recordId', canManageAttendance, getAttendanceRecordById);
-router.get('/summary/:employeeId/:year/:month', canManageAttendance, getEmployeeMonthlySummary);
+router.get('/summary/:employeeId/:year/:month', getEmployeeMonthlySummary); //managed
 router.post('/punch-in',canManageAttendance, punchIn);
 router.post('/punch-out',canManageAttendance, punchOut);
 router.post("/bulk",canManageAttendance,bulkCreateAttendance)

@@ -365,6 +365,7 @@ const getLeaveBalancesByEmployee = async (req, res) => {
     const sql = `
       SELECT
         lt.name AS leave_type_name,
+        lt.id as id,
         elb.balance
       FROM employee_leave_balance elb
       JOIN leave_types lt ON elb.leave_id = lt.id
