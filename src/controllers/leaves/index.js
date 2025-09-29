@@ -4,24 +4,29 @@ const { updateLeaveType } = require('./update');
 const { deleteLeaveType, deleteMyLeaveRequest } = require('./delete');
 const { getPrimaryApprovalRequests, getSecondaryApprovalRequests, setPrimaryApprovalStatus, setSecondaryApprovalStatus, getMyApprovalHistory } = require('./approval');
 const { downloadLeaveApplication } = require('./download');
+const { requestLeaveEncashment, getEncashmentRequests, processEncashmentRequest, getAllEncashmentRecords, approveOrRejectEncashment, disburseEncashment } = require('./encashment'); // New
 
 module.exports = {
   createLeaveType,
+  createLeaveRequest,
   getAllLeaveTypes,
-  updateLeaveType,
-  deleteLeaveType,
   getMyLeaveBalances,
   getMyLeaveRequests,
-  createLeaveRequest,
+  getLeaveBalancesByEmployee,
+  getLeaveRecordsByEmployee,
+  getLeaveRecordById,
+  getLeaveLedgerByEmployee,
+  updateLeaveType,
+  deleteLeaveType,
   deleteMyLeaveRequest,
   getPrimaryApprovalRequests,
   getSecondaryApprovalRequests,
   setPrimaryApprovalStatus,
   setSecondaryApprovalStatus,
-  getLeaveBalancesByEmployee,
-  getLeaveRecordsByEmployee,
   getMyApprovalHistory,
-  getLeaveRecordById,
   downloadLeaveApplication,
-  getLeaveLedgerByEmployee
+  requestLeaveEncashment, // New
+  getAllEncashmentRecords,
+  approveOrRejectEncashment,
+  disburseEncashment
 };

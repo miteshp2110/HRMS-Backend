@@ -20,6 +20,12 @@ const {
   getLeaveRecordById,
   downloadLeaveApplication,
   getLeaveLedgerByEmployee,
+  requestLeaveEncashment,
+  getEncashmentRequests,
+  processEncashmentRequest,
+  disburseEncashment,
+  approveOrRejectEncashment,
+  getAllEncashmentRecords,
 } = require('../../controllers/leaves');
 
 const router = express.Router();
@@ -51,5 +57,10 @@ router.get('/history',getMyApprovalHistory)
 router.get('/:id',getLeaveRecordById)
 router.get('/download/:id',downloadLeaveApplication)
 router.get('/ledger/:employeeId',canManageLeaves,getLeaveLedgerByEmployee)
+
+router.post('/encashment/request', requestLeaveEncashment); // Employee submits a request
+router.get('/encashment/all', canManageLeaves, getAllEncashmentRecords); // Admin gets all records
+router.patch('/encashment/approval/:id', canManageLeaves, approveOrRejectEncashment); // Manager approves/rejects
+router.patch('/encashment/disburse/:id', canManageLeaves, disburseEncashment); // HR disburses
 
 module.exports = router;
