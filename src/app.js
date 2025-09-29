@@ -110,5 +110,7 @@ app.use("/api/eos", require('./routes/eos/eosRoutes'));
 
 app.use("/api/cases", require('./routes/cases/caseRoutes'));
 
+app.use("/api/onboarding", require('./routes/onboarding/onboardingRoutes.js'));
+
 
 module.exports = app
