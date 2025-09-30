@@ -7,6 +7,7 @@ const {
   removeComponent,
   getMySalaryStructure,
   editEmployeeComponent,
+  getStandardParameters,
 } = require('../../controllers/payroll/structure');
 
 const router = express.Router();
@@ -16,6 +17,7 @@ router.use(authenticate);
 // Use a permission like 'payroll.manage' for these administrative tasks
 const canManagePayroll = authorize(['payroll.manage']);
 
+router.get('/params',getStandardParameters)
 // Get the full salary structure for an employee
 router.get('/:employeeId', canManagePayroll,getEmployeeSalaryStructure);
 

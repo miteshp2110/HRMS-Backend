@@ -1,14 +1,16 @@
 const { pool } = require('../../db/connector');
+const { DateTime } = require('luxon');
 
 /**
- * @description [Admin] Adds a manual repayment for an active loan and recalculates the remaining EMIs.
+ * @description [Admin] Manually records a repayment for a single EMI.
  */
-const addManualRepayment = async (req, res) => {
-    const { loanId } = req.params;
-    const { amount } = req.body;
+const manualRepayment = async (req, res) => {
+    const { scheduleId } = req.params;
+    const { repayment_date, transaction_id } = req.body;
+    const updated_by = req.user.id;
 
-    if (!amount || isNaN(amount) || amount <= 0) {
-        return res.status(400).json({ message: 'A valid, positive repayment amount is required.' });
+    if (!repayment_date || !transaction_id) {
+        return res.status(400).json({ message: 'Repayment date and transaction ID are required.' });
     }
 
     let connection;
@@ -16,70 +18,88 @@ const addManualRepayment = async (req, res) => {
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
-        // 1. Get the current state of the loan
-        const [[loan]] = await connection.query(
-            "SELECT * FROM employee_loans WHERE id = ? AND status = 'active'", 
-            [loanId]
-        );
-
-        if (!loan) {
+        const [[schedule]] = await connection.query('SELECT * FROM loan_amortization_schedule WHERE id = ? AND status = "Pending" FOR UPDATE', [scheduleId]);
+        if (!schedule) {
             await connection.rollback();
-            return res.status(404).json({ message: 'Active loan not found.' });
+            return res.status(404).json({ message: 'Pending EMI schedule not found.' });
         }
 
-        // 2. Calculate the current outstanding balance
-        const currentOutstanding = parseFloat(loan.emi_amount) * loan.remaining_installments;
-
-        if (parseFloat(amount) > currentOutstanding) {
-            await connection.rollback();
-            return res.status(400).json({ message: `Repayment amount (${amount}) cannot be greater than the outstanding balance (${currentOutstanding}).` });
-        }
-
-        // 3. Log the manual repayment with a NULL payslip_id
+        // 1. Create the repayment record
         const repaymentSql = `
-            INSERT INTO loan_repayments (loan_id, payslip_id, repayment_amount, repayment_date)
-            VALUES (?, NULL, ?, CURDATE())
+            INSERT INTO loan_repayments (loan_application_id, schedule_id, repayment_amount, repayment_date, updated_by,transaction_id)
+            VALUES (?, ?, ?, ?, ?, ?);
         `;
-        await connection.query(repaymentSql, [loanId, amount]);
+        const [repaymentResult] = await connection.query(repaymentSql, [schedule.loan_application_id, scheduleId, schedule.emi_amount, repayment_date, updated_by, transaction_id]);
         
-        // 4. Recalculate the new outstanding balance and the new EMI
-        const newOutstanding = currentOutstanding - parseFloat(amount);
-        let newEmiAmount = 0;
-        let newStatus = loan.status;
-        let newRemainingInstallments = loan.remaining_installments;
-
-        if (newOutstanding <= 0) {
-            // The loan is now fully paid off
-            newStatus = 'paid_off';
-            newRemainingInstallments = 0;
-        } else {
-            // Recalculate the EMI for the remaining installments
-            newEmiAmount = (newOutstanding / loan.remaining_installments).toFixed(2);
+        // 2. Update the schedule status to 'Paid'
+        await connection.query('UPDATE loan_amortization_schedule SET status = "Paid", repayment_id = ? WHERE id = ?', [repaymentResult.insertId, scheduleId]);
+        
+        // 3. Check if this was the last EMI to close the loan
+        const [[pending_emis]] = await connection.query('SELECT COUNT(*) as count FROM loan_amortization_schedule WHERE loan_application_id = ? AND status = "Pending"', [schedule.loan_application_id]);
+        if(pending_emis.count === 0){
+            await connection.query('UPDATE loan_applications SET status = "Closed" WHERE id = ?', [schedule.loan_application_id]);
         }
-
-        // 5. Update the main loan record
-        const updateLoanSql = `
-            UPDATE employee_loans 
-            SET emi_amount = ?, status = ?, remaining_installments = ?
-            WHERE id = ?
-        `;
-        await connection.query(updateLoanSql, [newEmiAmount, newStatus, newRemainingInstallments, loanId]);
-
+        
         await connection.commit();
-        res.status(200).json({ 
-            success: true, 
-            message: 'Manual repayment was successful. Loan details have been updated.',
-            new_emi_amount: newEmiAmount,
-            status: newStatus
-        });
+        res.status(200).json({ success: true, message: 'EMI has been marked as paid successfully.' });
 
     } catch (error) {
         if (connection) await connection.rollback();
-        console.error('Error adding manual repayment:', error);
+        console.error('Error in manual repayment:', error);
         res.status(500).json({ message: 'An internal server error occurred.' });
     } finally {
         if (connection) connection.release();
     }
 };
 
-module.exports = { addManualRepayment };
+/**
+ * @description [Admin] Forecloses a loan, calculating the outstanding principal and closing the application.
+ */
+const forecloseLoan = async (req, res) => {
+    const { applicationId } = req.params;
+    const updated_by = req.user.id;
+
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        const [[outstanding]] = await connection.query(`
+            SELECT SUM(principal_component) as outstanding_principal
+            FROM loan_amortization_schedule
+            WHERE loan_application_id = ? AND status = 'Pending';
+        `, [applicationId]);
+
+        if (!outstanding || outstanding.outstanding_principal === null) {
+            await connection.rollback();
+            return res.status(404).json({ message: 'No outstanding principal found for this loan. It may already be closed.' });
+        }
+        
+        const outstanding_principal = parseFloat(outstanding.outstanding_principal);
+
+        // 1. Mark all pending EMIs as 'Paid' to close them out
+        await connection.query('UPDATE loan_amortization_schedule SET status = "Paid" WHERE loan_application_id = ? AND status = "Pending"', [applicationId]);
+        
+        // 2. Update the main loan application to 'Foreclosed'
+        await connection.query('UPDATE loan_applications SET status = "Closed" WHERE id = ?', [applicationId]);
+        
+        await connection.commit();
+        res.status(200).json({
+            success: true,
+            message: 'Loan has been foreclosed successfully.',
+            final_settlement_amount: outstanding_principal.toFixed(2)
+        });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error('Error foreclosing loan:', error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+module.exports = {
+    manualRepayment,
+    forecloseLoan
+};

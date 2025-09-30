@@ -1,6 +1,10 @@
 const { approveOvertime } = require('./approve');
+const { getAttendanceAuditHistory, getOvertimeAuditHistory } = require('./audit');
+const { bulkCreateAttendance } = require('./bulk');
+const { requestOvertime, getMyOvertimeRecords, getOvertimeRequestsForApproval, approveOrRejectOvertime, updateOvertimeRecord, deleteOvertimeRequest, getOvertimeRequestsForApprovalForId } = require('./overtime');
 const { punchIn, punchOut } = require('./punch');
 const { getMyAttendance, getAttendanceRecords } = require('./read');
+const { getEmployeeMonthlySummary, getAttendanceRecordById } = require('./summary');
 const { updatePayType } = require('./update');
 // const { getMyAttendance, getAttendanceByEmployee } = require('./read');
 // const { editAttendanceRecord } = require('./approval');
@@ -11,5 +15,17 @@ module.exports = {
   getMyAttendance,
   getAttendanceRecords,
   updatePayType,
-  approveOvertime
+  approveOvertime,
+  requestOvertime,
+  getMyOvertimeRecords,
+  getOvertimeRequestsForApproval,
+  approveOrRejectOvertime,
+  updateOvertimeRecord,
+  deleteOvertimeRequest,
+  getEmployeeMonthlySummary,
+  getAttendanceRecordById,
+  getAttendanceAuditHistory,
+  getOvertimeAuditHistory,
+  getOvertimeRequestsForApprovalForId,
+  bulkCreateAttendance
 };

@@ -9,13 +9,13 @@ const { uploadProfileImage } = require('../../services/s3Service');
 const createUser = async (req, res) => {
   // 1. Destructure and validate required fields from the request body
   const {
-    firstName, lastName, dob, email, phone, password, gender,
+    id,firstName, lastName, dob, email, phone, password, gender,
     emergencyContactName, emergencyContactRelation, emergencyContactNumber,
     joiningDate, systemRole, jobRole, shift, reportsTo, isProbation
   } = req.body;
 
   // Basic validation
-  if (!firstName || !lastName || !email || !password || !joiningDate || !systemRole || !shift) {
+  if (!id || !firstName || !lastName || !email || !password || !joiningDate || !systemRole || !shift) {
     return res.status(400).json({ message: 'Missing required fields.' });
   }
 
@@ -52,15 +52,15 @@ const createUser = async (req, res) => {
     // 5. Insert the new user into the database
     const insertSql = `
       INSERT INTO user (
-        first_name, last_name, dob, email, phone, password_hash, profile_url, gender,
+        id,first_name, last_name, dob, email, phone, password_hash, profile_url, gender,
         emergency_contact_name, emergency_contact_relation, emergency_contact_number,
-        joining_date, system_role, job_role, shift, reports_to, created_by, is_probation
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        joining_date, system_role, job_role, shift, reports_to, created_by
+      ) VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `;
     const [result] = await connection.query(insertSql, [
-      firstName, lastName, dob, email, phone, passwordHash, profileUrl, gender,
+      parseInt(id),firstName, lastName, dob, email, phone, passwordHash, profileUrl, gender,
       emergencyContactName, emergencyContactRelation, emergencyContactNumber,
-      joiningDate, systemRole, jobRole, shift, reportsTo, createdBy, isProbation
+      joiningDate, systemRole, jobRole, shift, reportsTo, createdBy,
     ]);
 
     const newUser = {

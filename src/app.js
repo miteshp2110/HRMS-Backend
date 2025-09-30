@@ -100,4 +100,19 @@ app.use('/api/dashboard',require('./routes/dashboard/dashboardRoutes'))
 app.use('/api/reports',require('./routes/reports/reportRoutes'))
 
 app.use("/api/settings/name-series",require('./routes/nameSeriesRoutes'))
+
+
+
+app.use("/api/benefits", require('./routes/benefits/benefitRoutes'));
+
+
+app.use("/api/eos", require('./routes/eos/eosRoutes'));
+
+app.use("/api/cases", require('./routes/cases/caseRoutes'));
+
+app.use("/api/onboarding", require('./routes/onboarding/onboardingRoutes.js'));
+
+app.use("/api/performance", require('./routes/performance/performanceRoutes.js'));
+
+
 module.exports = app

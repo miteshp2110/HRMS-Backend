@@ -120,9 +120,100 @@ const getEmployeeExpenseSummary = async (req, res) => {
     }
 };
 
+
+/**
+ * @description [Admin] Gets a list of all claims that are in a 'Processed' or 'Reimbursed' state, with optional date filtering.
+ */
+const getProcessedClaims = async (req, res) => {
+    const { startDate, endDate } = req.query;
+    let connection;
+
+    try {
+        connection = await pool.getConnection();
+        let sql = `
+            SELECT
+                ec.*,
+                cat.name as category_name,
+                CONCAT(e.first_name, ' ', e.last_name) as employee_name,
+                CONCAT(a.first_name, ' ', a.last_name) as approver_name,
+                CONCAT(p.first_name, ' ', p.last_name) as processor_name,
+                er.file_url as receipt_url
+            FROM expense_claims ec
+            JOIN expense_categories cat ON ec.category_id = cat.id
+            JOIN user e ON ec.employee_id = e.id
+            LEFT JOIN user a ON ec.approved_by = a.id
+            LEFT JOIN user p ON ec.processed_by = p.id
+            LEFT JOIN expense_receipts er ON ec.id = er.expense_claim_id
+            WHERE ec.status IN ('Processed', 'Reimbursed')
+        `;
+        const params = [];
+
+        if (startDate && endDate) {
+            sql += ` AND ec.expense_date BETWEEN ? AND ?`;
+            params.push(startDate, endDate);
+        }
+
+        sql += ' ORDER BY ec.processed_date DESC;';
+        
+        const [claims] = await connection.query(sql, params);
+        res.status(200).json(claims);
+
+    } catch (error) {
+        console.error('Error fetching processed claims:', error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+/**
+ * @description [Admin] Gets a list of all approved reimbursements that are pending payment in the next payroll.
+ */
+const getUpcomingPayrollReimbursements = async (req, res) => {
+    const { startDate, endDate } = req.query;
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        let sql = `
+            SELECT
+                ec.*,
+                cat.name as category_name,
+                CONCAT(e.first_name, ' ', e.last_name) as employee_name,
+                CONCAT(a.first_name, ' ', a.last_name) as approver_name,
+                CONCAT(p.first_name, ' ', p.last_name) as processor_name,
+                er.file_url as receipt_url
+            FROM expense_claims ec
+            JOIN expense_categories cat ON ec.category_id = cat.id
+            JOIN user e ON ec.employee_id = e.id
+            LEFT JOIN user a ON ec.approved_by = a.id
+            LEFT JOIN user p ON ec.processed_by = p.id
+            LEFT JOIN expense_receipts er ON ec.id = er.expense_claim_id
+            WHERE ec.status = 'Processed' AND ec.reimbursement_method = 'Payroll'
+        `;
+        const params = [];
+
+        if (startDate && endDate) {
+            sql += ` AND ec.expense_date BETWEEN ? AND ?`;
+            params.push(startDate, endDate);
+        }
+
+        sql += ' ORDER BY ec.processed_date DESC;';
+        
+        const [claims] = await connection.query(sql, params);
+        res.status(200).json(claims);
+    } catch (error) {
+        console.error('Error fetching upcoming payroll reimbursements:', error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
 module.exports = { 
   getExpenses, 
   getExpenseById, 
   getExpensesByEmployee ,
-  getEmployeeExpenseSummary
+  getEmployeeExpenseSummary,
+  getProcessedClaims,
+  getUpcomingPayrollReimbursements
 };

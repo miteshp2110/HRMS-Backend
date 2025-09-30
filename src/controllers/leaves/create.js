@@ -38,6 +38,7 @@ const createLeaveType = async (req, res) => {
     accurable = false,
     accural_rate = 0,
     max_balance = 0,
+    is_encashable =false
   } = req.body;
 
   if (!name || !description) {
@@ -49,8 +50,8 @@ const createLeaveType = async (req, res) => {
     connection = await pool.getConnection();
     const sql = `
       INSERT INTO leave_types 
-      (name, description, initial_balance, accurable, accural_rate, max_balance) 
-      VALUES (?, ?, ?, ?, ?, ?)
+      (name, description, initial_balance, accurable, accural_rate, max_balance,is_encashable) 
+      VALUES (?, ?, ?, ?, ?, ?,?)
     `;
     const [result] = await connection.query(sql, [
       name,
@@ -59,6 +60,7 @@ const createLeaveType = async (req, res) => {
       accurable,
       accural_rate,
       max_balance,
+      is_encashable
     ]);
     res.status(201).json({
       success: true,
