@@ -112,5 +112,7 @@ app.use("/api/cases", require('./routes/cases/caseRoutes'));
 
 app.use("/api/onboarding", require('./routes/onboarding/onboardingRoutes.js'));
 
+app.use("/api/performance", require('./routes/performance/performanceRoutes.js'));
+
 
 module.exports = app

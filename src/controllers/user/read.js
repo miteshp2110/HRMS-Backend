@@ -545,6 +545,7 @@ const getDirectReports = async (req, res) => {
     }
 };
 
+
 module.exports = {
     getAllUsers,
     searchUsers,
