@@ -4,10 +4,10 @@
  * @param {string[]} requiredPermissions - An array of permission names required to access the route.
  */
 const authorize = (requiredPermissions = []) => {
+  
   return (req, res, next) => {
     // This middleware must run AFTER the authenticate middleware
     const user = req.user;
-
     if (!user || !user.permissions) {
       return res.status(403).json({ message: 'Forbidden. No user permissions found.' });
     }
