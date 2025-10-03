@@ -1,68 +1,121 @@
 const { pool } = require('../../db/connector');
 const { DateTime } = require('luxon');
 
+
+
 /**
- * @description The core engine for calculating an employee's loan eligibility.
+ * @description Calculate employee loan & advance eligibility.
  */
 const checkEligibility = async (req, res) => {
-    const employee_id = req.user.id;
-    let connection;
+  const employee_id = req.user.id;
+  let connection;
+  try {
+    connection = await pool.getConnection();
 
-    try {
-        connection = await pool.getConnection();
+    // 1. Fetch financial data
+    const [[financials]] = await connection.query(`
+      SELECT
+        u.joining_date,
+        (SELECT SUM(balance) FROM employee_leave_balance WHERE employee_id = u.id)         AS total_leave_balance,
+        (SELECT value FROM employee_salary_structure WHERE employee_id = u.id AND component_id = 1 LIMIT 1) AS basic_salary,
+        (
+          SELECT SUM(ess.value)
+          FROM employee_salary_structure ess
+          JOIN payroll_components pc ON ess.component_id = pc.id
+          WHERE ess.employee_id = u.id AND pc.type = 'earning'
+        ) AS gross_salary
+      FROM user u
+      WHERE u.id = ?;
+    `, [employee_id]);
 
-        // --- 1. Fetch all necessary financial data for the employee ---
-        const [[financials]] = await connection.query(`
-            SELECT
-                u.joining_date,
-                (SELECT SUM(balance) FROM employee_leave_balance WHERE employee_id = u.id) as total_leave_balance,
-                (SELECT value FROM employee_salary_structure WHERE employee_id = u.id AND component_id = 1) as basic_salary,
-                (
-                    SELECT SUM(ess.value)
-                    FROM employee_salary_structure ess
-                    JOIN payroll_components pc ON ess.component_id = pc.id
-                    WHERE ess.employee_id = u.id AND pc.type = 'earning' AND ess.value_type = 'fixed'
-                ) as gross_salary
-            FROM user u
-            WHERE u.id = ?;
-        `, [employee_id]);
-
-        if (!financials || !financials.basic_salary || !financials.gross_salary) {
-            return res.status(400).json({ message: "Eligibility cannot be calculated. Please ensure the employee's salary structure is complete." });
-        }
-
-        // --- 2. Perform Eligibility Calculations ---
-        const yearsOfService = DateTime.now().diff(DateTime.fromJSDate(financials.joining_date), 'years').years;
-        const dailyGrossSalary = (financials.gross_salary * 12) / 365;
-
-        const leaveEncashmentLiability = financials.total_leave_balance * dailyGrossSalary;
-        const gratuityAccrued = (financials.basic_salary * 15 / 26) * yearsOfService;
-        const eligibleBaseAmount = leaveEncashmentLiability + gratuityAccrued;
-
-        // --- 3. Fetch all active loan types and apply percentage limits ---
-        const [loanTypes] = await connection.query('SELECT id,max_tenure_months, name, eligibility_percentage, interest_rate, is_advance FROM loan_types WHERE is_active = TRUE');
-
-        const eligibleProducts = loanTypes.map(lt => ({
-            loan_type_id: lt.id,
-            name: lt.name,
-            is_advance: !!lt.is_advance,
-            interest_rate: lt.interest_rate,
-            max_tenure_months : lt.max_tenure_months,
-            max_eligible_amount: parseFloat(((eligibleBaseAmount * lt.eligibility_percentage) / 100).toFixed(2))
-        }));
-
-        res.status(200).json({
-            eligible_base_amount: parseFloat(eligibleBaseAmount.toFixed(2)),
-            eligible_products: eligibleProducts
-        });
-
-    } catch (error) {
-        console.error('Error in eligibility check:', error);
-        res.status(500).json({ message: 'An internal server error occurred.' });
-    } finally {
-        if (connection) connection.release();
+    if (
+      !financials ||
+      financials.basic_salary == null ||
+      financials.gross_salary == null
+    ) {
+      return res.status(400).json({
+        message:
+          "Eligibility cannot be calculated. Please complete salary structure.",
+      });
     }
+
+    // 2. Compute base amounts
+    const yearsOfService = DateTime.now()
+      .diff(DateTime.fromJSDate(financials.joining_date), "years").years;
+    const dailyGross = (financials.gross_salary * 12) / 365;
+
+    const leaveLiability = financials.total_leave_balance * dailyGross;
+    const gratuityAccrued =
+      financials.basic_salary * (15 / 26) * yearsOfService;
+    const baseAmount = leaveLiability + gratuityAccrued;
+
+    // 3. Fetch loan and advance types
+    const [products] = await connection.query(`
+      SELECT id, name, is_advance, eligibility_percentage, interest_rate, max_tenure_months
+      FROM loan_types
+      WHERE is_active = TRUE;
+    `);
+
+    // 4. Calculate eligible amounts
+    const eligible_products = [];
+    for (const p of products) {
+      if (!p.is_advance) {
+        // loan: apply percentage to baseAmount
+        const max_eligible = parseFloat(
+          ((baseAmount * p.eligibility_percentage) / 100).toFixed(2)
+        );
+        eligible_products.push({
+          loan_type_id: p.id,
+          name: p.name,
+          is_advance: false,
+          interest_rate: p.interest_rate,
+          max_tenure_months: p.max_tenure_months,
+          max_eligible_amount: max_eligible,
+        });
+      } else {
+        // advance: based on hours worked
+        // fetch total hours worked this month
+        const monthStart = DateTime.now().startOf("month").toISODate();
+        const monthEnd = DateTime.now().endOf("month").toISODate();
+        const [[{ total_hours }]] = await connection.query(`
+          SELECT COALESCE(SUM(hours_worked),0) AS total_hours
+          FROM attendance_record
+          WHERE employee_id = ? AND attendance_date BETWEEN ? AND ?
+        `, [employee_id, monthStart, monthEnd]);
+
+        // rate per hour = basic_salary / scheduled_monthly_hours (approx 30 * 8)
+        const ratePerHour = financials.basic_salary / (30 * 8);
+        const earned = total_hours * ratePerHour;
+
+        // apply percentage limit
+        const max_eligible = parseFloat(
+          ((earned * p.eligibility_percentage) / 100).toFixed(2)
+        );
+        eligible_products.push({
+          loan_type_id: p.id,
+          name: p.name,
+          is_advance: true,
+          interest_rate: p.interest_rate,
+          max_tenure_months: p.max_tenure_months,
+          hours_worked: total_hours,
+          rate_per_hour: parseFloat(ratePerHour.toFixed(2)),
+          max_eligible_amount: max_eligible,
+        });
+      }
+    }
+
+    res.status(200).json({
+      eligible_base_amount: parseFloat(baseAmount.toFixed(2)),
+      eligible_products,
+    });
+  } catch (error) {
+    console.error("Error in eligibility check:", error);
+    res.status(500).json({ message: "Internal server error." });
+  } finally {
+    if (connection) connection.release();
+  }
 };
+
 
 
 /**

@@ -166,6 +166,7 @@ const getUserProfileById = async (req, res) => {
                 s.name as shift_name,
                 s.from_time as shift_start_time,
                 s.to_time as shift_end_time,
+                u.shift as shift_id,
                 CONCAT(ns.prefix, '-',LPAD(u.id, ns.padding_length, '0')) as full_employee_id,
                 CONCAT(manager.first_name, ' ', manager.last_name) as reports_to_name,
                 CONCAT(inactivator.first_name, ' ', inactivator.last_name) as inactivated_by_name
