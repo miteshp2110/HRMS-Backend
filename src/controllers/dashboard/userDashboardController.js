@@ -70,7 +70,7 @@ const getUserDashboardData = async (req, res) => {
         const upcomingLeavePromise = connection.query(upcomingLeaveSql, [employeeId, today.toISODate()]);
 
         // 6. Get pending leave requests for the user to approve
-        const pendingLeaveSql = 'SELECT lr.id, CONCAT(u.first_name, " ", u.last_name) as employee_name, lt.name as leave_type_name FROM employee_leave_records lr JOIN user u ON lr.employee_id = u.id JOIN leave_types lt ON lr.leave_type = lt.id WHERE lr.primary_user = ? AND lr.primary_status IS NULL';
+        const pendingLeaveSql = 'SELECT lr.id, lt.name as leave_type_name, lr.from_date as fromDate, lr.to_date as toDate FROM employee_leave_records lr JOIN user u ON lr.employee_id = u.id JOIN leave_types lt ON lr.leave_type = lt.id WHERE lr.primary_user = ? AND lr.primary_status IS NULL';
         const pendingLeavePromise = connection.query(pendingLeaveSql, [employeeId]);
 
         // 7. Get pending loan requests submitted by the user
