@@ -74,15 +74,15 @@ const getUserDashboardData = async (req, res) => {
         const pendingLeavePromise = connection.query(pendingLeaveSql, [employeeId]);
 
         // 7. Get pending loan requests submitted by the user
-        const pendingLoanSql = 'SELECT la.id, la.requested_amount, lt.name FROM loan_applications la JOIN loan_types lt ON lt.id = la.loan_type_id WHERE employee_id = ? AND status = "Pending Approval"';
+        const pendingLoanSql = `SELECT la.id, la.requested_amount, lt.name FROM loan_applications la JOIN loan_types lt ON lt.id = la.loan_type_id WHERE employee_id = ? AND status = 'Pending Approval'`;
         const pendingLoanPromise = connection.query(pendingLoanSql, [employeeId]);
 
         // 8. Get pending expense requests submitted by the user
-        const pendingExpenseSql = 'SELECT id, title, amount FROM expense_claims WHERE employee_id = ? AND status = "Pending"';
+        const pendingExpenseSql = `SELECT id, title, amount FROM expense_claims WHERE employee_id = ? AND status = 'Pending'`;
         const pendingExpensePromise = connection.query(pendingExpenseSql, [employeeId]);
         
         // 9. Get pending overtime requests
-        const pendingOvertimeSql = 'SELECT id, overtime_hours, request_date FROM employee_overtime_records WHERE employee_id = ? AND status = "pending_approval"';
+        const pendingOvertimeSql = `SELECT id, overtime_hours, request_date FROM employee_overtime_records WHERE employee_id = ? AND status = 'pending_approval'`;
         const pendingOvertimePromise = connection.query(pendingOvertimeSql, [employeeId]);
 
         // 10. Get ongoing loans with paid/pending EMI details
@@ -98,7 +98,7 @@ const getUserDashboardData = async (req, res) => {
         const ongoingLoansPromise = connection.query(ongoingLoansSql, [employeeId]);
 
         // 11. Get pending HR cases against the user
-        const pendingCasesSql = 'SELECT id, case_id_text, title FROM hr_cases WHERE employee_id = ? AND status = "Open"';
+        const pendingCasesSql = `SELECT id, case_id_text, title FROM hr_cases WHERE employee_id = ? AND status = 'Open'`;
         const pendingCasesPromise = connection.query(pendingCasesSql, [employeeId]);
 
         // --- Execute all queries in parallel ---
