@@ -11,12 +11,19 @@ const jobRoutes = require('./routes/job/jobRoutes')
 const { getAllPermissions } = require('./controllers/roles')
 const authenticate = require('./middleware/authenticate')
 const authorize = require('./middleware/authorize')
+const { artificialDelay } = require('./middleware/delay.js')
 
 // set JSON limit here
 app.use(cors())
 app.use(express.json({ limit: "50mb" }))
 app.use(express.urlencoded({ limit: "50mb", extended: true }))
 
+
+app.use(artificialDelay({
+    min:500,
+    max:1500,
+    enabled:true
+}))
 
 
 app.use('/api/auth',authRoutes)

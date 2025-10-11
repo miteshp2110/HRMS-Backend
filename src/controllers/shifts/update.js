@@ -54,14 +54,15 @@ const updateShift = async (req, res) => {
   const { id } = req.params;
   const body = req.body;
 
+  console.log(body)
   if (Object.keys(body).length === 0) {
     return res.status(400).json({ message: 'At least one field to update is required.' });
   }
 
-  const { from_time_local, to_time_local, timezone } = body;
+  const { from_time_local, to_time_local, timezone,overtime_threshold } = body;
 
   // Validate that if one time field is sent, all time-related fields are sent.
-  if ((from_time_local || to_time_local) && (!from_time_local || !to_time_local || !timezone)) {
+  if ((from_time_local || to_time_local) && (!from_time_local || !to_time_local || !timezone || !overtime_threshold)) {
     return res.status(400).json({ 
         message: 'To update shift times, from_time_local, to_time_local, and timezone are all required.' 
     });
@@ -83,7 +84,7 @@ const updateShift = async (req, res) => {
     }
 
     // Add other potential fields to the update object if they exist in the request
-    ['name', 'half_day_threshold', 'punch_in_margin', 'punch_out_margin'].forEach(field => {
+    ['name', 'half_day_threshold', 'punch_in_margin', 'punch_out_margin', 'overtime_threshold'].forEach(field => {
         if (body[field] !== undefined) {
             fieldsToUpdate[field] = body[field];
         }

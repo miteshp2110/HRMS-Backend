@@ -1,0 +1,1 @@
+alter table user add column probation_days int default 0 not null;

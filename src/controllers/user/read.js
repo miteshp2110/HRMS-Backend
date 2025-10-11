@@ -545,10 +545,49 @@ const getDirectReports = async (req, res) => {
     }
 };
 
+/**
+ * @description Gets the detailed profiles of the currently authenticated user's direct reports.
+ */
+const getMyDirectReports = async (req, res) => {
+    const managerId = req.user.id; // Get the ID from the authenticated user's token
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        const sql = `
+            SELECT
+                u.id,
+                u.first_name,
+                u.last_name,
+                u.email,
+                u.phone,
+                u.profile_url,
+                u.is_active,
+                r.name AS role_name,
+                j.title AS job_title,
+                CONCAT(ns.prefix, LPAD(u.id, ns.padding_length, '0')) as full_employee_id
+            FROM user u
+            LEFT JOIN roles r ON u.system_role = r.id
+            LEFT JOIN jobs j ON u.job_role = j.id
+            LEFT JOIN name_series ns ON ns.table_name = 'user'
+            WHERE u.reports_to = ? and u.is_active = 1
+            ORDER BY u.first_name, u.last_name;
+        `;
+        const [directReports] = await connection.query(sql, [managerId]);
+
+        res.status(200).json(directReports);
+    } catch (error) {
+        console.error(`Error fetching direct reports for manager ${managerId}:`, error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
 
 module.exports = {
     getAllUsers,
     searchUsers,
     findUsersByPermissions,
-    getDirectReports
+    getDirectReports,
+    getMyDirectReports
 };

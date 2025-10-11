@@ -6,7 +6,7 @@ const { uploadProfileImage } = require('../../services/s3Service');
  * @description Creates a new user in the system.
  * Handles password hashing and optional profile image upload.
  */
-const createUser = async (req, res) => {
+const createUser1 = async (req, res) => {
   // 1. Destructure and validate required fields from the request body
   const {
     id,firstName, lastName, dob, email, phone, password, gender,
