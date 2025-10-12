@@ -658,8 +658,8 @@ class AttendanceReportsController {
                 halfDays: employee.half_days,
                 lateArrivals: employee.late_arrivals,
                 earlyDepartures: employee.early_departures,
-                totalHours: (employee.total_hours_worked || 0).toFixed(2),
-                avgHours: (employee.avg_hours_per_day || 0).toFixed(2),
+                totalHours: (parseFloat(employee.total_hours_worked) || 0).toFixed(2),
+                avgHours: (parseFloat(employee.avg_hours_per_day) || 0).toFixed(2),
                 attendanceRate: attendanceRate
             });
         });
@@ -862,4 +862,11 @@ class AttendanceReportsController {
     }
 }
 
-module.exports = new AttendanceReportsController();
+// module.exports = new AttendanceReportsController();
+
+const controller = new AttendanceReportsController();
+module.exports = {
+  generateAttendanceReport: controller.generateAttendanceReport.bind(controller),
+  generateMonthlyAttendanceSummary: controller.generateMonthlyAttendanceSummary.bind(controller),
+  generateEmployeeAttendanceSummary: controller.generateEmployeeAttendanceSummary.bind(controller)
+};

@@ -100,6 +100,7 @@ app.use('/api/summary',require('./routes/summary/summaryRoutes'))
 //Dashboard
 
 app.use('/api/dashboard',require('./routes/dashboard/dashboardRoutes'))
+app.use('/api/dashboard/admin',require('./routes/dashboard/adminDashboardRoutes.js'))
 
 
 //Reports

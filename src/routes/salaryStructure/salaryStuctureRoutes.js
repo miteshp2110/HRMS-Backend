@@ -9,6 +9,8 @@ const {
   editEmployeeComponent,
   getStandardParameters,
 } = require('../../controllers/payroll/structure');
+const { getSalaryStructureAuditHistory } = require('../../controllers/payroll/salaryAuditController');
+const { scheduleRevision, getRevisionsByEmployee, cancelRevision } = require('../../controllers/payroll/revisionsController');
 
 const router = express.Router();
 router.use(authenticate);
@@ -29,5 +31,18 @@ router.delete('/:employeeId/components/:componentId',canManagePayroll, removeCom
 router.patch('/:employeeId/components/:componentId', canManagePayroll, editEmployeeComponent);
 
 router.get('/',getMySalaryStructure)
+
+
+router.get('/audit/:employeeId', canManagePayroll, getSalaryStructureAuditHistory);
+
+// Schedule a new salary revision
+router.post('/revisions/schedule', canManagePayroll, scheduleRevision);
+
+// Get all revisions for an employee
+router.get('/revisions/:employeeId', canManagePayroll, getRevisionsByEmployee);
+
+// Cancel a scheduled revision
+router.patch('/revisions/cancel/:revisionId', canManagePayroll, cancelRevision);
+
 
 module.exports = router;

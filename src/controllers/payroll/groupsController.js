@@ -227,7 +227,8 @@ exports.getGroupById = async (req, res) => {
             return res.status(404).json({ message: 'Payroll group not found.' });
         }
 
-        const [components] = await connection.query(`
+        // Fetch components that exist in the payroll_components table
+        const [dbComponents] = await connection.query(`
             SELECT pc.id, pc.name, pc.type
             FROM payroll_group_components pgc
             JOIN payroll_components pc ON pgc.component_id = pc.id
@@ -235,7 +236,31 @@ exports.getGroupById = async (req, res) => {
             ORDER BY pc.name ASC;
         `, [groupId]);
 
-        res.status(200).json({ ...group, components });
+        // Fetch all component IDs associated with the group
+        const [allComponentIds] = await connection.query(
+            'SELECT component_id FROM payroll_group_components WHERE group_id = ?',
+            [groupId]
+        );
+        const componentIdSet = new Set(allComponentIds.map(c => c.component_id));
+
+        // Define the predefined components
+        const predefinedComponents = [
+            { id: 97, name: "Loans/Advance Emi Deduction", type: "deduction" },
+            { id: 98, name: "HR Cases Deduction", type: "deduction" },
+            { id: 99, name: "Expense Reimbursements", type: "earning" },
+        ];
+        
+        // Add predefined components if they are linked in the pivot table
+        predefinedComponents.forEach(predefined => {
+            if (componentIdSet.has(predefined.id)) {
+                // Ensure it's not already added (though it shouldn't be, as they are not in payroll_components)
+                if (!dbComponents.some(c => c.id === predefined.id)) {
+                    dbComponents.push(predefined);
+                }
+            }
+        });
+
+        res.status(200).json({ ...group, components: dbComponents });
     } catch (error) {
         console.error('Error fetching payroll group:', error);
         res.status(500).json({ message: 'An internal server error occurred.' });

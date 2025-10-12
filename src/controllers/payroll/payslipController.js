@@ -400,3 +400,69 @@ exports.getMyPayslip = async (req, res) => {
         res.status(500).json({ message: 'An internal server error occurred.' });
     }
 };
+
+/**
+ * @description [Admin] Deletes a single component (detail line) from a payslip and recalculates totals.
+ */
+exports.deletePayslipComponent = async (req, res) => {
+    const { payslipId, payslipDetailId } = req.params;
+
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        // 1. Check the payslip's current status. Can't edit finalized or paid payslips.
+        const [[payslip]] = await connection.query(
+            "SELECT status FROM payslips WHERE id = ? FOR UPDATE",
+            [payslipId]
+        );
+
+        if (!payslip) {
+            await connection.rollback();
+            return res.status(404).json({ message: 'Payslip not found.' });
+        }
+
+        if (payslip.status === 'Finalized' || payslip.status === 'Paid') {
+            await connection.rollback();
+            return res.status(409).json({ message: `Cannot modify a payslip that is already ${payslip.status}.` });
+        }
+
+        // 2. Delete the specific component from the payslip_details table
+        const [deleteResult] = await connection.query(
+            "DELETE FROM payslip_details WHERE id = ? AND payslip_id = ?",
+            [payslipDetailId, payslipId]
+        );
+
+        if (deleteResult.affectedRows === 0) {
+            await connection.rollback();
+            return res.status(404).json({ message: 'Payslip component not found on this payslip.' });
+        }
+
+        // 3. Recalculate totals for the payslip after deletion
+        const [[totals]] = await connection.query(`
+            SELECT 
+                COALESCE(SUM(CASE WHEN component_type = 'earning' THEN amount ELSE 0 END), 0) as gross,
+                COALESCE(SUM(CASE WHEN component_type = 'deduction' THEN amount ELSE 0 END), 0) as ded
+            FROM payslip_details WHERE payslip_id = ?
+        `, [payslipId]);
+
+        const net_pay = (totals.gross || 0) - (totals.ded || 0);
+        
+        // 4. Update the main payslip record with new totals and reset its status to 'Draft'
+        await connection.query(
+            "UPDATE payslips SET gross_earnings = ?, total_deductions = ?, net_pay = ?, status = 'Draft' WHERE id = ?",
+            [totals.gross || 0, totals.ded || 0, net_pay, payslipId]
+        );
+
+        await connection.commit();
+        res.status(200).json({ success: true, message: 'Payslip component removed successfully.' });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error('Error deleting payslip component:', error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
