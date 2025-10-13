@@ -22,6 +22,7 @@ const {
   bulkCreateAttendance,
   
 } = require('../../controllers/attendance');
+const { updateAttendanceRecord } = require('../../controllers/attendance/update');
 
 const router = express.Router();
 
@@ -34,6 +35,7 @@ const canManageAttendance = authorize(['attendance.manage']);
 router.get('/all',getAttendanceRecords) // managed
 router.get('/me',getMyAttendance)
 router.get('/:recordId', canManageAttendance, getAttendanceRecordById);
+router.patch('/:recordId', canManageAttendance, updateAttendanceRecord);
 router.get('/summary/:employeeId/:year/:month', getEmployeeMonthlySummary); //managed
 router.post('/punch-in',canManageAttendance, punchIn);
 router.post('/punch-out',canManageAttendance, punchOut);

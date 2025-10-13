@@ -22,8 +22,8 @@ class PayrollReportsController {
             // Get cycle information
             const cycleQuery = `
                 SELECT pc.*, 
-                       DATE_FORMAT(pc.pay_period_start, '%Y-%m-%d') as pay_start,
-                       DATE_FORMAT(pc.pay_period_end, '%Y-%m-%d') as pay_end
+                       DATE_FORMAT(pc.start_date, '%Y-%m-%d') as pay_start,
+                       DATE_FORMAT(pc.end_date, '%Y-%m-%d') as pay_end
                 FROM payroll_cycles pc 
                 WHERE pc.id = ?
             `;

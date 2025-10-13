@@ -1,45 +1,3 @@
-// const { pool } = require('../../db/connector');
-
-// /**
-//  * @description Update a shift's details.
-//  */
-// const updateShift = async (req, res) => {
-//   const { id } = req.params;
-//   const { name, from_time, to_time } = req.body;
-
-//   if (!name && !from_time && !to_time) {
-//     return res.status(400).json({ message: 'At least one field to update is required.' });
-//   }
-  
-//   let connection;
-//   try {
-//     connection = await pool.getConnection();
-//     const [[existingShift]] = await connection.query('SELECT * FROM shifts WHERE id = ?', [id]);
-
-//     if (!existingShift) {
-//         return res.status(404).json({ message: 'Shift not found.' });
-//     }
-
-//     const newName = name || existingShift.name;
-//     const newFromTime = from_time || existingShift.from_time;
-//     const newToTime = to_time || existingShift.to_time;
-
-//     await connection.query(
-//       'UPDATE shifts SET name = ?, from_time = ?, to_time = ? WHERE id = ?',
-//       [newName, newFromTime, newToTime, id]
-//     );
-
-//     res.status(200).json({ success: true, message: 'Shift updated successfully.' });
-//   } catch (error) {
-//     console.error('Error updating shift:', error);
-//     res.status(500).json({ message: 'An internal server error occurred.' });
-//   } finally {
-//     if (connection) connection.release();
-//   }
-// };
-
-// module.exports = { updateShift };
-
 
 
 const { pool } = require('../../db/connector');
@@ -54,14 +12,15 @@ const updateShift = async (req, res) => {
   const { id } = req.params;
   const body = req.body;
 
+  console.log(body)
   if (Object.keys(body).length === 0) {
     return res.status(400).json({ message: 'At least one field to update is required.' });
   }
 
-  const { from_time_local, to_time_local, timezone } = body;
+  const { from_time_local, to_time_local, timezone,overtime_threshold } = body;
 
   // Validate that if one time field is sent, all time-related fields are sent.
-  if ((from_time_local || to_time_local) && (!from_time_local || !to_time_local || !timezone)) {
+  if ((from_time_local || to_time_local) && (!from_time_local || !to_time_local || !timezone || !overtime_threshold)) {
     return res.status(400).json({ 
         message: 'To update shift times, from_time_local, to_time_local, and timezone are all required.' 
     });
@@ -83,7 +42,7 @@ const updateShift = async (req, res) => {
     }
 
     // Add other potential fields to the update object if they exist in the request
-    ['name', 'half_day_threshold', 'punch_in_margin', 'punch_out_margin'].forEach(field => {
+    ['name', 'half_day_threshold', 'punch_in_margin', 'punch_out_margin', 'overtime_threshold'].forEach(field => {
         if (body[field] !== undefined) {
             fieldsToUpdate[field] = body[field];
         }

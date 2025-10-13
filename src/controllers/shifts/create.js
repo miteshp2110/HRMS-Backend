@@ -25,9 +25,10 @@ const createShift = async (req, res) => {
     half_day_threshold,
     punch_in_margin,
     punch_out_margin,
+    overtime_threshold
   } = req.body;
 
-  if (!name || !from_time_local || !to_time_local || !timezone) {
+  if (!name || !from_time_local || !to_time_local || !timezone || !overtime_threshold) {
     return res.status(400).json({ 
       message: 'Name, from_time_local, to_time_local, and timezone are required.' 
     });
@@ -48,8 +49,8 @@ const createShift = async (req, res) => {
     connection = await pool.getConnection();
     const sql = `
       INSERT INTO shifts 
-      (name, from_time, to_time, half_day_threshold, punch_in_margin, punch_out_margin) 
-      VALUES (?, ?, ?, ?, ?, ?)
+      (name, from_time, to_time, half_day_threshold, punch_in_margin, punch_out_margin,overtime_threshold) 
+      VALUES (?, ?, ?, ?, ?, ?,?)
     `;
     const [result] = await connection.query(sql, [
       name,
@@ -58,6 +59,7 @@ const createShift = async (req, res) => {
       half_day_threshold || null,
       punch_in_margin || 0,
       punch_out_margin || 0,
+      overtime_threshold || 0
     ]);
 
     res.status(201).json({

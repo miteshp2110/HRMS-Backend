@@ -90,6 +90,8 @@ router.post('/payslips/:payslipId/adjust',  payslipController.addManualAdjustmen
 router.patch('/payslips/:payslipId/finalize', payslipController.finalizePayslip);
 router.post('/cycles/:cycleId/bulk-add', payslipController.bulkAddComponents);
 
+router.delete('/payslips/:payslipId/details/:payslipDetailId', payslipController.deletePayslipComponent);
+
 // --- Employee Self-Service ---
 router.get('/cycles/:cycleId/my-payslip', payslipController.getMyPayslip);
 
