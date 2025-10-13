@@ -212,30 +212,32 @@ exports.getPendingOvertimeRequests = async (req, res) => {
 };
 
 /**
- * @description Widget 7: Gets documents expiring within a specified number of days (default 30).
+ * @description Widget 7: Gets documents expiring within their defined reminder threshold (in months).
  */
 exports.getUpcomingDocumentExpiries = async (req, res) => {
-    const days = req.query.days || 30;
-    const today = DateTime.now().toISODate();
-    const futureDate = DateTime.now().plus({
-        days
-    }).toISODate();
     let connection;
     try {
         connection = await pool.getConnection();
+        // This query now dynamically calculates the expiration window for each document
+        // based on the 'reminder_threshold' (in months) set for that document type.
         const sql = `
             SELECT
-                ud.id, ud.expiry_date,
-                rd.name as document_name,
+                ud.id,
+                ud.expiry_date,
+                DATEDIFF(ud.expiry_date, CURDATE()) as days_left,
+                rd.name AS document_name,
                 CONCAT(u.first_name, ' ', u.last_name) AS employee_name,
-                u.profile_url, u.id as employee_id
+                u.profile_url, 
+                u.id as employee_id
             FROM uploaded_document ud
             JOIN required_documents rd ON ud.document_id = rd.id
             JOIN user u ON ud.user_id = u.id
-            WHERE u.is_active = 1 AND ud.expiry_date BETWEEN ? AND ?
+            WHERE
+                u.is_active = 1
+                AND ud.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL rd.reminder_threshold MONTH)
             ORDER BY ud.expiry_date ASC;
         `;
-        const [documents] = await connection.query(sql, [today, futureDate]);
+        const [documents] = await connection.query(sql);
         res.status(200).json(documents);
     } catch (error) {
         console.error('Error fetching upcoming document expiries:', error);
