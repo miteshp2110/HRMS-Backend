@@ -450,8 +450,10 @@ const calculateHoursWorked = (punchIn, punchOut) => {
  * @description Determines the official punch time.
  * @returns {Date} The official punch time as a JavaScript Date object.
  */
+
+// process.env.NODE_ENV !== 'production' &&
 const getPunchTime = (req) => {
-  if (process.env.NODE_ENV !== 'production' && req.body.time_local && req.body.timezone) {
+  if ( req.body.time_local && req.body.timezone) {
     const { time_local, timezone } = req.body;
     return DateTime.fromFormat(time_local, "yyyy-MM-dd HH:mm:ss", { zone: timezone }).toJSDate();
   } else {
