@@ -19,6 +19,7 @@ const {
     getOngoingLoansByEmployee,
     downloadLoanApplicationPDF
 } = require('../../controllers/loans');
+const { rescheduleUpcomingEMI, makeLumpSumPayment } = require('../../controllers/loans/repayment');
 
 const router = express.Router();
 
@@ -52,7 +53,8 @@ router.get('/download/:applicationId', downloadLoanApplicationPDF);
 // --- Repayment & Closure Routes (Admin) ---
 router.post('/repayment/manual/:scheduleId', canManageLoans, manualRepayment);
 router.post('/foreclose/:applicationId', canManageLoans, forecloseLoan);
-
+router.patch('/repayment/reschedule/:scheduleId', canManageLoans, rescheduleUpcomingEMI); 
+router.post('/repayment/lump-sum/:applicationId', canManageLoans, makeLumpSumPayment);
 
 // --- Admin-Specific Routes ---
 router.patch('/admin/update/:applicationId', canManageLoans, updateLoanApplicationByAdmin);
