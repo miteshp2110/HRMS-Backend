@@ -357,7 +357,7 @@ const initiateSettlement = async (req, res) => {
                 loan_deduction_amount, loan_deduction_breakdown,
                 case_deduction_amount,case_deduction_breakdown,
                 total_additions, total_deductions, net_settlement_amount, initiated_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?);
         `;
         await connection.query(insertSql, [
             employee_id, last_working_date, termination_type, termination_reason, notes,
@@ -373,7 +373,7 @@ const initiateSettlement = async (req, res) => {
     } catch (error) {
         if (connection) await connection.rollback();
         console.error('Error initiating settlement:', error);
-        res.status(500).json({ message: 'An internal server error occurred.' });
+        res.status(500).json({ message: error.message });
     } finally {
         if (connection) connection.release();
     }
@@ -600,11 +600,45 @@ const recordPayment = async (req, res) => {
         if (connection) connection.release();
     }
 };
+
+/**
+ * @description [Admin] Deletes a settlement record, only if it's in 'Pending' status.
+ */
+const deleteSettlement = async (req, res) => {
+    const { settlementId } = req.params;
+    const permissions = req.user.permissions
+    
+    let connection;
+
+    try {
+        connection = await pool.getConnection();
+        let deleteQuery = "DELETE FROM final_settlements WHERE id = ? AND status = 'Pending'"
+        if(permissions.includes('master.key')){
+            deleteQuery = "DELETE FROM final_settlements WHERE id = ?"
+        }
+        const [result] = await connection.query(
+            deleteQuery,
+            [settlementId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Pending settlement not found or you dont have permissions to delete it' });
+        }
+
+        res.status(204).send(); // Success with no content
+    } catch (error) {
+        console.error('Error deleting settlement:', error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
 module.exports = {
     initiateSettlement,
     getSettlementDetails,
     updateSettlementDeductions,
     approveSettlement,
     recordPayment,
-    getAllSettlements
+    getAllSettlements,
+    deleteSettlement
 };

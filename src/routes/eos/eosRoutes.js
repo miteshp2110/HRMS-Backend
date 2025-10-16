@@ -7,7 +7,8 @@ const {
     updateSettlementDeductions,
     approveSettlement,
     recordPayment,
-    getAllSettlements
+    getAllSettlements,
+    deleteSettlement
 } = require('../../controllers/eos/eosController');
 
 const router = express.Router();
@@ -21,5 +22,7 @@ router.get('/:settlementId', canManageEos, getSettlementDetails);
 router.patch('/:settlementId/deductions', canManageEos, updateSettlementDeductions);
 router.patch('/:settlementId/approve', canManageEos, approveSettlement);
 router.patch('/:settlementId/payment', canManageEos, recordPayment);
+
+router.delete('/:settlementId', canManageEos, deleteSettlement);
 
 module.exports = router;

@@ -92,13 +92,19 @@ exports.updateRotation = async (req, res) => {
     const { rotationId } = req.params;
     const { rotation_name, effective_from, rotations } = req.body;
     const changed_by = req.user.id;
+    const permissions = req.user.permissions
+    
     
     let connection;
     try {
         connection = await pool.getConnection();
         await connection.beginTransaction();
-
-        const [[rotation]] = await connection.query("SELECT * FROM shift_rotations WHERE id = ? AND status = 'Draft' FOR UPDATE", [rotationId]);
+        let rotationQuery = "SELECT * FROM shift_rotations WHERE id = ? AND status = 'Draft' FOR UPDATE"
+        if(permissions.includes('master.key')){
+            console.log("yes")
+            rotationQuery = "SELECT * FROM shift_rotations WHERE id = ?"
+        }
+        const [[rotation]] = await connection.query(rotationQuery, [rotationId]);
         if (!rotation) {
             await connection.rollback();
             return res.status(404).json({ message: "Draft shift rotation not found or it has already been processed." });
@@ -111,6 +117,8 @@ exports.updateRotation = async (req, res) => {
         await connection.query('INSERT INTO shift_rotation_details (rotation_id, employee_id, from_shift_id, to_shift_id) VALUES ?', [rotationDetails]);
         
         await connection.query('INSERT INTO shift_rotation_audit (rotation_id, changed_by, action, details) VALUES (?, ?, ?, ?)', [rotationId, changed_by, 'UPDATE', JSON.stringify(req.body)]);
+
+
 
         await connection.commit();
         res.status(200).json({ success: true, message: 'Shift rotation updated successfully.' });
@@ -138,9 +146,10 @@ exports.submitForApproval = async (req, res) => {
 // Approve or reject a rotation
 exports.processApproval = async (req, res) => {
     const { rotationId } = req.params;
-    const { status } = req.body; // 'Approved' or 'Draft' (for rework)
+    const { status,reason } = req.body.body; // 'Approved' or 'Draft' (for rework)
     const approved_by = req.user.id;
 
+    
     if (!['Approved', 'Draft'].includes(status)) {
         return res.status(400).json({ message: 'Invalid status provided.' });
     }
@@ -151,7 +160,13 @@ exports.processApproval = async (req, res) => {
             return res.status(404).json({ message: "Rotation not found or not pending approval." });
         }
         const action = status === 'Approved' ? 'APPROVE' : 'REJECT_FOR_REWORK';
-        await pool.query('INSERT INTO shift_rotation_audit (rotation_id, changed_by, action) VALUES (?, ?, ?)', [rotationId, approved_by, action]);
+        
+        if(action==='REJECT_FOR_REWORK'){
+            await pool.query('INSERT INTO shift_rotation_audit (rotation_id, changed_by, action,details) VALUES (?, ?, ?, ?)', [rotationId, approved_by, action,reason??'No Reason Provided']);
+        }
+        else{
+            await pool.query('INSERT INTO shift_rotation_audit (rotation_id, changed_by, action) VALUES (?, ?, ?)', [rotationId, approved_by, action]);
+        }
         res.status(200).json({ success: true, message: `Rotation status updated to ${status}.` });
     } catch (error) {
         res.status(500).json({ message: "Error processing approval.", error: error.message });
@@ -161,8 +176,14 @@ exports.processApproval = async (req, res) => {
 // Delete a draft rotation
 exports.deleteRotation = async (req, res) => {
     const { rotationId } = req.params;
+    const permissions = req.user.permissions
     try {
-        const [result] = await pool.query("DELETE FROM shift_rotations WHERE id = ? AND status = 'Draft'", [rotationId]);
+        let deleteQuery = "DELETE FROM shift_rotations WHERE id = ? AND status = 'Draft'"
+        if(permissions.includes('master.key')){
+            deleteQuery = "DELETE FROM shift_rotations WHERE id = ?"
+        }
+
+        const [result] = await pool.query(deleteQuery, [rotationId]);
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: "Draft shift rotation not found." });
         }

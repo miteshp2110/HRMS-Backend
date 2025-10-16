@@ -25,7 +25,7 @@ const downloadLoanApplicationPDF = async (req, res) => {
                 CONCAT(ha.first_name, ' ', ha.last_name) as hr_approver_name,
                 (SELECT SUM(balance) FROM employee_leave_balance WHERE employee_id = e.id) as total_leave_balance,
                 (SELECT value FROM employee_salary_structure WHERE employee_id = e.id AND component_id = 1) as basic_salary,
-                (SELECT SUM(ess.value) FROM employee_salary_structure ess JOIN payroll_components pc ON ess.component_id = pc.id WHERE ess.employee_id = e.id AND pc.type = 'earning' AND ess.value_type = 'fixed') as gross_salary
+                (SELECT SUM(ess.value) FROM employee_salary_structure ess JOIN payroll_components pc ON ess.component_id = pc.id WHERE ess.employee_id = e.id AND pc.type = 'earning' AND ess.calculation_type = 'Fixed') as gross_salary
             FROM loan_applications la
             JOIN loan_types lt ON la.loan_type_id = lt.id
             JOIN user e ON la.employee_id = e.id
@@ -69,7 +69,7 @@ const downloadLoanApplicationPDF = async (req, res) => {
            .font('Helvetica-Bold').text('Approved Amount:', { continued: true }).font('Helvetica').text(` ${application.approved_amount || 'Pending'}`)
            .font('Helvetica-Bold').text('Tenure:', { continued: true }).font('Helvetica').text(` ${application.tenure_months} months`)
            .font('Helvetica-Bold').text('Interest Rate:', { continued: true }).font('Helvetica').text(` ${application.interest_rate || application.default_interest_rate}%`)
-           .font('Helvetica-Bold').text('EMI Amount:', { continued: true }).font('Helvetica').text(` ${application.emi_amount ? `Rs. ${application.emi_amount}` : `(Est.) Rs. ${estimatedEMI}`}`);
+           .font('Helvetica-Bold').text('EMI Amount:', { continued: true }).font('Helvetica').text(` ${application.emi_amount ? `AED ${application.emi_amount}` : `(Est.) AED ${estimatedEMI}`}`);
         doc.moveDown();
 
         // --- Section 2: Eligibility Calculation ---
@@ -81,9 +81,9 @@ const downloadLoanApplicationPDF = async (req, res) => {
         
         doc.fontSize(14).font('Helvetica-Bold').text('Eligibility Details (at time of application)', { underline: true });
         doc.moveDown();
-        doc.fontSize(10).text(`Leave Encashment Liability: Rs. ${leaveLiability.toFixed(2)}`);
-        doc.text(`Gratuity Accrued: Rs. ${gratuity.toFixed(2)}`);
-        doc.font('Helvetica-Bold').text(`Total Eligible Base Amount: Rs. ${eligibleBase.toFixed(2)}`);
+        doc.fontSize(10).text(`Leave Encashment Liability: AED ${leaveLiability.toFixed(2)}`);
+        doc.text(`Gratuity Accrued: AED ${gratuity.toFixed(2)}`);
+        doc.font('Helvetica-Bold').text(`Total Eligible Base Amount: AED ${eligibleBase.toFixed(2)}`);
         doc.moveDown();
 
         // --- Section 3: Approval & Disbursement Status ---

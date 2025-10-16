@@ -338,7 +338,7 @@ const getAllUsers = async (req, res) => {
         u.id, u.first_name, u.last_name, u.dob, u.email, u.phone, u.profile_url, u.gender,
         u.emergency_contact_name, u.emergency_contact_relation, u.emergency_contact_number,
         u.joining_date, u.salary_visibility, u.is_signed, u.is_active, u.inactive_date, u.inactive_reason,
-        u.is_probation, u.is_payroll_exempt, u.nationality, u.created_at, u.updated_at,
+        u.is_probation, u.is_payroll_exempt, u.nationality, u.created_at, u.updated_at,u.shift as shift_id,
         r.name AS role_name,
         j.title AS job_title,
         CONCAT(ns.prefix,'-', LPAD(u.id, ns.padding_length, '0')) as full_employee_id,
