@@ -541,6 +541,35 @@ const getLeaveLedgerByEmployee = async (req, res) => {
     }
 };
 
+/**
+ * @description Gets all encashable leave balances for the currently authenticated user.
+ */
+const getMyEncashableLeaveBalances = async (req, res) => {
+    const employeeId = req.user.id;
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        const sql = `
+            SELECT
+                lt.id as id,
+                lt.name AS leave_type_name,
+                lt.is_encashable,
+                elb.balance
+            FROM employee_leave_balance elb
+            JOIN leave_types lt ON elb.leave_id = lt.id
+            WHERE elb.employee_id = ? AND lt.is_encashable = TRUE;
+        `;
+        const [balances] = await connection.query(sql, [employeeId]);
+
+        res.status(200).json(balances);
+    } catch (error) {
+        console.error('Error fetching my encashable leave balances:', error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
 
 module.exports = {
     getAllLeaveTypes,
@@ -549,5 +578,6 @@ module.exports = {
     getLeaveBalancesByEmployee,
     getLeaveRecordsByEmployee,
     getLeaveRecordById,
-    getLeaveLedgerByEmployee
+    getLeaveLedgerByEmployee,
+    getMyEncashableLeaveBalances
 };

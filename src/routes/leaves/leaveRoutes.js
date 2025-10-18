@@ -26,6 +26,7 @@ const {
   disburseEncashment,
   approveOrRejectEncashment,
   getAllEncashmentRecords,
+  getMyEncashableLeaveBalances,
 } = require('../../controllers/leaves');
 
 const router = express.Router();
@@ -40,6 +41,7 @@ router.patch('/types/:id', canManageLeaves, updateLeaveType);
 router.delete('/types/:id', canManageLeaves, deleteLeaveType);
 
 router.get("/balance",getMyLeaveBalances)
+router.get("/encashable-balance",getMyEncashableLeaveBalances)
 router.get("/records",getMyLeaveRequests)
 router.post("/request-leave",createLeaveRequest)
 router.delete("/request/:recordId",deleteMyLeaveRequest)

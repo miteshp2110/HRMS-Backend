@@ -2,33 +2,40 @@ const { pool } = require('../../db/connector');
 const { DateTime } = require('luxon');
 
 /**
- * @description Allows an employee to manually request overtime for a specific date.
+ * @description Allows an employee to manually request overtime for a specific date, with timezone handling.
  */
 const requestOvertime = async (req, res) => {
   const employeeId = req.user.id;
-  const { attendance_date, overtime_start, overtime_end, overtime_type = 'regular' } = req.body;
+  const { attendance_date, overtime_start, overtime_end, overtime_type = 'regular', reason, timezone } = req.body;
 
-  if (!attendance_date || !overtime_start || !overtime_end) {
-    return res.status(400).json({ message: 'attendance_date, overtime_start, and overtime_end are required.' });
+  if (!attendance_date || !overtime_start || !overtime_end || !reason || !timezone) {
+    return res.status(400).json({ message: 'attendance_date, overtime_start, overtime_end, timezone, and a reason are required.' });
   }
 
   let connection;
   try {
     connection = await pool.getConnection();
 
-    const startTime = DateTime.fromISO(overtime_start);
-    const endTime = DateTime.fromISO(overtime_end);
-    if (startTime >= endTime) {
+    // Interpret the incoming times as local to the provided timezone, then convert to UTC
+    const startTimeUTC = DateTime.fromISO(overtime_start, { zone: timezone }).toUTC();
+    const endTimeUTC = DateTime.fromISO(overtime_end, { zone: timezone }).toUTC();
+
+    if (!startTimeUTC.isValid || !endTimeUTC.isValid) {
+        return res.status(400).json({ message: 'Invalid overtime_start or overtime_end format. Please use ISO 8601 format (e.g., YYYY-MM-DDTHH:mm:ss).' });
+    }
+
+    if (startTimeUTC >= endTimeUTC) {
         return res.status(400).json({ message: 'Overtime start time must be before the end time.'});
     }
 
-    const overtime_hours = parseFloat(endTime.diff(startTime, 'hours').as('hours').toFixed(2));
+    const overtime_hours = parseFloat(endTimeUTC.diff(startTimeUTC, 'hours').as('hours').toFixed(2));
 
     const sql = `
-      INSERT INTO employee_overtime_records (employee_id, request_date, overtime_hours, overtime_type, overtime_start, overtime_end)
-      VALUES (?, ?, ?, ?, ?, ?);
+      INSERT INTO employee_overtime_records (employee_id, request_date, overtime_hours, overtime_type, overtime_start, overtime_end, reason)
+      VALUES (?, ?, ?, ?, ?, ?, ?);
     `;
-    const [result] = await connection.query(sql, [employeeId, attendance_date, overtime_hours, overtime_type, startTime.toJSDate(), endTime.toJSDate()]);
+    // Store the UTC times in the database
+    const [result] = await connection.query(sql, [employeeId, attendance_date, overtime_hours, overtime_type, startTimeUTC.toJSDate(), endTimeUTC.toJSDate(), reason]);
 
     res.status(201).json({
       success: true,
