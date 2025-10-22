@@ -4,9 +4,9 @@ const { pool } = require('../../db/connector');
  * @description Create a new expense record for an employee.
  */
 const createExpense = async (req, res) => {
-  const { employee_id, expense_title, expense_description, expense } = req.body;
+  const { employee_id, expense_title, expense_description, expense , jv} = req.body;
 
-  if (!employee_id || !expense_title || !expense_description || expense === undefined) {
+  if (!employee_id || !expense_title || !expense_description || expense === undefined || !jv) {
     return res.status(400).json({ message: 'All fields are required.' });
   }
 
@@ -15,14 +15,15 @@ const createExpense = async (req, res) => {
     connection = await pool.getConnection();
     const sql = `
       INSERT INTO expense_on_employee 
-      (employee_id, expense_title, expense_description, expense) 
-      VALUES (?, ?, ?, ?)
+      (employee_id, expense_title, expense_description, expense,jv) 
+      VALUES (?, ?, ?, ?, ?)
     `;
     const [result] = await connection.query(sql, [
       employee_id,
       expense_title,
       expense_description,
       expense,
+      jv
     ]);
     res.status(201).json({
       success: true,

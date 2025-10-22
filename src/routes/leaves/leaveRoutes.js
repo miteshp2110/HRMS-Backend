@@ -27,6 +27,7 @@ const {
   approveOrRejectEncashment,
   getAllEncashmentRecords,
   getMyEncashableLeaveBalances,
+  updateLeaveBalance,
 } = require('../../controllers/leaves');
 
 const router = express.Router();
@@ -53,6 +54,7 @@ router.post("/primary-approval/:recordId",canManageLeaves,setPrimaryApprovalStat
 router.post("/secondry-approval/:recordId",canManageLeaves,setSecondaryApprovalStatus)
 
 router.get('/balance/:employeeId',canManageLeaves,getLeaveBalancesByEmployee)
+router.patch('/balance/:employeeId/:leaveId', canManageLeaves, updateLeaveBalance);
 router.get('/records/:employeeId',canManageLeaves,getLeaveRecordsByEmployee)
 router.get('/history',getMyApprovalHistory)
 

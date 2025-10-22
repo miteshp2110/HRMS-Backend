@@ -187,3 +187,105 @@ exports.syncDeductionToPayroll = async (req, res) => {
         res.status(500).json({ message: "Error syncing deduction.", error: error.message });
     }
 };
+
+/**
+ * @description Gets all detailed cases for a specific employee.
+ */
+exports.getCasesByEmployee = async (req, res) => {
+    const { employeeId } = req.params;
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        const [cases] = await connection.query(`
+            SELECT hc.*, cat.name as category_name,
+                   CONCAT(e.first_name, ' ', e.last_name) as employee_name,
+                   CONCAT(r.first_name, ' ', r.last_name) as raised_by_name,
+                   CONCAT(a.first_name, ' ', a.last_name) as assigned_to_name
+            FROM hr_cases hc
+            JOIN case_categories cat ON hc.category_id = cat.id
+            JOIN user e ON hc.employee_id = e.id
+            JOIN user r ON hc.raised_by = r.id
+            JOIN user a ON hc.assigned_to = a.id
+            WHERE hc.employee_id = ?
+            ORDER BY hc.created_at DESC
+        `, [employeeId]);
+
+        if (cases.length === 0) {
+            return res.status(200).json([]);
+        }
+
+        const detailedCases = [];
+        for (const caseItem of cases) {
+            const [attachments] = await connection.query('SELECT * FROM case_attachments WHERE case_id = ?', [caseItem.id]);
+            const [comments] = await connection.query(`
+                SELECT cc.comment, cc.created_at, CONCAT(u.first_name, ' ', u.last_name) as author_name
+                FROM case_comments cc
+                JOIN user u ON cc.user_id = u.id
+                WHERE cc.case_id = ?
+                ORDER BY cc.created_at ASC
+            `, [caseItem.id]);
+            detailedCases.push({
+                ...caseItem,
+                attachments,
+                comments
+            });
+        }
+
+        res.status(200).json(detailedCases);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching cases for employee.", error: error.message });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+/**
+ * @description Gets all detailed cases for the currently authenticated user.
+ */
+exports.getMyCases = async (req, res) => {
+    const employee_id = req.user.id;
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        const [cases] = await connection.query(`
+            SELECT hc.*, cat.name as category_name,
+                   CONCAT(e.first_name, ' ', e.last_name) as employee_name,
+                   CONCAT(r.first_name, ' ', r.last_name) as raised_by_name,
+                   CONCAT(a.first_name, ' ', a.last_name) as assigned_to_name
+            FROM hr_cases hc
+            JOIN case_categories cat ON hc.category_id = cat.id
+            JOIN user e ON hc.employee_id = e.id
+            JOIN user r ON hc.raised_by = r.id
+            JOIN user a ON hc.assigned_to = a.id
+            WHERE hc.employee_id = ?
+            ORDER BY hc.created_at DESC
+        `, [employee_id]);
+
+        if (cases.length === 0) {
+            return res.status(200).json([]);
+        }
+
+        const detailedCases = [];
+        for (const caseItem of cases) {
+            const [attachments] = await connection.query('SELECT * FROM case_attachments WHERE case_id = ?', [caseItem.id]);
+            const [comments] = await connection.query(`
+                SELECT cc.comment, cc.created_at, CONCAT(u.first_name, ' ', u.last_name) as author_name
+                FROM case_comments cc
+                JOIN user u ON cc.user_id = u.id
+                WHERE cc.case_id = ?
+                ORDER BY cc.created_at ASC
+            `, [caseItem.id]);
+            detailedCases.push({
+                ...caseItem,
+                attachments,
+                comments
+            });
+        }
+
+        res.status(200).json(detailedCases);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching your cases.", error: error.message });
+    } finally {
+        if (connection) connection.release();
+    }
+};
