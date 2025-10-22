@@ -15,6 +15,7 @@ const getSalaryStructureAuditHistory = async (req, res) => {
                 essa.old_data,
                 essa.new_data,
                 essa.changed_at,
+                (select name from payroll_components where id = (select component_id from employee_salary_structure where id = (select salary_structure_id from employee_salary_structure_audit where id = essa.id))) as component_name,
                 CONCAT(u.first_name, ' ', u.last_name) as changed_by_name
             FROM employee_salary_structure_audit essa
             LEFT JOIN user u ON essa.changed_by = u.id

@@ -19,6 +19,8 @@ router.get('/approvals', casesController.getApprovalQueue);
 router.patch('/approvals/:caseId', casesController.processCaseApproval);
 router.post('/', canManageCases, upload.single('evidence'), casesController.createCase);
 router.get('/', canManageCases, casesController.getAllCases);
+router.get('/my-cases', casesController.getMyCases);
+router.get('/employee/:employeeId', canManageCases, casesController.getCasesByEmployee);
 router.get('/:caseId', canManageCases, casesController.getCaseById);
 router.post('/:caseId/sync-payroll', canManageCases, casesController.syncDeductionToPayroll);
 

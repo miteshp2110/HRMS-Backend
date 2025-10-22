@@ -39,7 +39,7 @@ exports.createAppraisalsForTeam = async (req, res) => {
     let connection;
     try {
         connection = await pool.getConnection();
-        const [team_members] = await connection.query('SELECT id FROM user WHERE reports_to = ?', [manager_id]);
+        const [team_members] = await connection.query('SELECT id FROM user WHERE reports_to = ? and is_active = 1', [manager_id]);
         if (team_members.length === 0) {
             return res.status(404).json({ message: "You have no team members to assign appraisals to." });
         }
@@ -86,14 +86,65 @@ exports.getMyAppraisal = async (req, res) => {
 };
 
 exports.submitSelfAssessment = async (req, res) => {
-    // This function would be more complex, iterating through goals and kpis from req.body
-    // For brevity, we'll just update the main status
     const { appraisalId } = req.params;
-    await pool.query("UPDATE performance_appraisals SET status = 'Manager-Review' WHERE id = ? AND employee_id = ?", [appraisalId, req.user.id]);
-    res.status(200).json({ success: true, message: 'Self-assessment submitted.' });
+    const { goals, kpis } = req.body;
+    const employee_id = req.user.id;
+
+    if (!Array.isArray(goals) || !Array.isArray(kpis)) {
+        return res.status(400).json({ message: 'Goals and KPIs must be arrays.' });
+    }
+
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        // 1. Verify that the appraisal belongs to the user and is in the correct state
+        const [[appraisal]] = await connection.query(
+            "SELECT id FROM performance_appraisals WHERE id = ? AND employee_id = ? AND status = 'Pending'",
+            [appraisalId, employee_id]
+        );
+
+        if (!appraisal) {
+            await connection.rollback();
+            return res.status(403).json({ message: 'Appraisal not found, not yours, or not in a state for self-assessment.' });
+        }
+
+        // 2. Update each goal with self-assessment details
+        for (const goal of goals) {
+            await connection.query(
+                'UPDATE employee_goals SET employee_rating = ?, employee_comments = ? WHERE id = ? AND appraisal_id = ?',
+                [goal.employee_rating, goal.employee_comments, goal.id, appraisalId]
+            );
+        }
+
+        // 3. Update each KPI with self-assessment details
+        for (const kpi of kpis) {
+            await connection.query(
+                'UPDATE employee_kpis SET actual = ?, employee_rating = ?, employee_comments = ? WHERE id = ? AND appraisal_id = ?',
+                [kpi.actual, kpi.employee_rating, kpi.employee_comments, kpi.id, appraisalId]
+            );
+        }
+
+        // 4. Update the main appraisal status to 'Manager-Review'
+        await connection.query(
+            "UPDATE performance_appraisals SET status = 'Manager-Review' WHERE id = ?",
+            [appraisalId]
+        );
+
+        await connection.commit();
+        res.status(200).json({ success: true, message: 'Self-assessment submitted successfully.' });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error("Error submitting self-assessment:", error);
+        res.status(500).json({ message: "Error submitting self-assessment.", error: error.message });
+    } finally {
+        if (connection) connection.release();
+    }
 };
 
-// ... More functions for manager assessment, etc. would go here
+
 
 /**
  * @description [Manager] Gets the appraisal status for all direct reports for a given cycle.
@@ -111,6 +162,7 @@ exports.getTeamAppraisalStatuses = async (req, res) => {
             FROM user u
             LEFT JOIN performance_appraisals pa ON u.id = pa.employee_id AND pa.cycle_id = ?
             WHERE u.reports_to = ?
+            AND u.is_active = 1
         `, [cycleId, manager_id]);
         res.status(200).json(team_appraisals);
     } catch (error) {
