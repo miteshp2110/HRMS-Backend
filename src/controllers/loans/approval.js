@@ -57,7 +57,7 @@ const processLoan = async (req, res) => {
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
-        const [[application]] = await connection.query('SELECT * FROM loan_applications WHERE id = ? AND status = "Pending Approval" FOR UPDATE', [applicationId]);
+        const [[application]] = await connection.query(`SELECT * FROM loan_applications WHERE id = ? AND status = 'Pending Approval' FOR UPDATE`, [applicationId]);
         if (!application) {
             await connection.rollback();
             return res.status(404).json({ message: 'Loan application not found or not pending approval.' });

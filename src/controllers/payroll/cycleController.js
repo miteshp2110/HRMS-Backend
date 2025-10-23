@@ -438,9 +438,10 @@ exports.updateCycleStatus = async (req, res) => {
         // Execute transition logic
         if (status === 'Review' && cycle.status === 'Auditing') {
             await generatePayslipsForCycle(connection, cycle);
-        } else if (status === 'Finalized' && cycle.status === 'Review') {
-            await finalizeProcessedItems(connection, cycle.id);
-        }
+        } 
+        // else if (status === 'Finalized' && cycle.status === 'Paid') {
+        //     await finalizeProcessedItems(connection, cycle.id);
+        // }
 
         await connection.query('UPDATE payroll_cycles SET status = ? WHERE id = ?', [status, cycleId]);
         await connection.commit();
@@ -730,13 +731,13 @@ async function generatePayslipsForCycle(connection, cycle) {
                 );
             }
 
-            if (processedItems.length > 0) {
-                const processedValues = processedItems.map(item => [payslipId, item.item_type, item.item_id, 'Processed']);
-                await connection.query(
-                    'INSERT INTO payslip_processed_items (payslip_id, item_type, item_id, status) VALUES ?', 
-                    [processedValues]
-                );
-            }
+            // if (processedItems.length > 0) {
+            //     const processedValues = processedItems.map(item => [payslipId, item.item_type, item.item_id, 'Processed']);
+            //     await connection.query(
+            //         'INSERT INTO payslip_processed_items (payslip_id, item_type, item_id, status) VALUES ?', 
+            //         [processedValues]
+            //     );
+            // }
 
             // Update totals
             const [[totals]] = await connection.query(`
