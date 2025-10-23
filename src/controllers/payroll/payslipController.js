@@ -280,6 +280,8 @@ exports.addManualAdjustment = async (req, res) => {
             [totals.gross || 0, totals.ded || 0, net_pay, payslipId]
         );
 
+        
+
         await connection.commit();
         res.status(200).json({ success: true, message: 'Manual adjustment added successfully.' });
     } catch (error) {
