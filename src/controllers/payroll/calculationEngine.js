@@ -3193,10 +3193,10 @@ exports.calculateEmployeePayslip = async (connection, employeeId, componentsToPr
         });
 
         // Update loan schedule status
-        // await connection.query(
-        //   "UPDATE loan_amortization_schedule SET status = 'Paid' WHERE id = ?",
-        //   [loan.schedule_id]
-        // );
+        await connection.query(
+          "UPDATE loan_amortization_schedule SET status = 'Paid' WHERE id = ?",
+          [loan.schedule_id]
+        );
       }
     }
 
@@ -3257,10 +3257,10 @@ if (componentIdsInRun.has(98)) {
     });
 
     // Mark as Closed after deduction is processed in payroll
-    // await connection.query(
-    //   "UPDATE hr_cases SET status = 'Closed' WHERE id = ?",
-    //   [hrCase.id]
-    // );
+    await connection.query(
+      "UPDATE hr_cases SET status = 'Closed' WHERE id = ?",
+      [hrCase.id]
+    );
     
     console.log(`Marked HR case ${hrCase.id} as Closed after payroll deduction`);
   }
@@ -3333,10 +3333,10 @@ if (componentIdsInRun.has(98)) {
           });
 
           // Update expense status to Reimbursed and set payroll ID
-          // await connection.query(
-          //   "UPDATE expense_claims SET reimbursed_in_payroll_id = ?, status = 'Reimbursed' WHERE id = ?",
-          //   [cycle.id, expense.id]
-          // );
+          await connection.query(
+            "UPDATE expense_claims SET reimbursed_in_payroll_id = ?, status = 'Reimbursed' WHERE id = ?",
+            [cycle.id, expense.id]
+          );
           
           console.log(
             `Marked expense id ${expense.id} as Reimbursed in payroll ${cycle.id}`
