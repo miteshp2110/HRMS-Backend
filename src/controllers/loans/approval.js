@@ -128,7 +128,7 @@ const disburseLoan = async (req, res) => {
             return res.status(404).json({ message: 'Approved loan application not found.' });
         }
 
-        await connection.query('UPDATE loan_applications SET status = "Disbursed", disbursement_date = ?, jv_number = ?, updated_by = ? WHERE id = ?', [disbursement_date, jv_number, disburserId, applicationId]);
+        await connection.query(`UPDATE loan_applications SET status = 'Disbursed', disbursement_date = ?, jv_number = ?, updated_by = ? WHERE id = ?`, [disbursement_date, jv_number, disburserId, applicationId]);
 
         if (!application.is_advance) {
             const { approved_amount, tenure_months, interest_rate } = application;

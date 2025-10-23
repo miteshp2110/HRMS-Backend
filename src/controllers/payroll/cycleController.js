@@ -424,7 +424,7 @@ exports.updateCycleStatus = async (req, res) => {
             'Draft': ['Auditing'],
             'Auditing': ['Review', 'Draft'],
             'Review': ['Finalized', 'Auditing'],
-            'Finalized': ['Paid'],
+            'Finalized': ['Paid','Review'],
             'Paid': []
         };
 
