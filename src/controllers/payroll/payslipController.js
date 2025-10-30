@@ -1,125 +1,4 @@
 
-
-// const { pool } = require('../../db/connector');
-
-// // ... (getPayslipForReview and updatePayslipStatus functions are correct and remain the same) ...
-// exports.getPayslipForReview = async (req, res) => {
-//     const { payslipId } = req.params;
-//     let connection;
-//     try {
-//         connection = await pool.getConnection();
-//         const [[payslip]] = await connection.query(`
-//             SELECT p.*, CONCAT(u.first_name, ' ', u.last_name) as employee_name
-//             FROM payslips p JOIN user u ON p.employee_id = u.id
-//             WHERE p.id = ?
-//         `, [payslipId]);
-
-//         if (!payslip) {
-//             return res.status(404).json({ message: 'Payslip not found.' });
-//         }
-
-//         const [details] = await connection.query(`
-//             SELECT pd.*
-//             FROM payslip_details pd
-//             WHERE pd.payslip_id = ?
-//             ORDER BY pd.component_type, pd.component_name
-//         `, [payslipId]);
-
-//         details.forEach(d => d.calculation_breakdown = JSON.parse(d.calculation_breakdown || '{}'));
-
-//         res.status(200).json({ ...payslip, details });
-//     } catch (error) {
-//         console.error('Error fetching payslip for review:', error);
-//         res.status(500).json({ message: 'An internal server error occurred.' });
-//     } finally {
-//         if (connection) connection.release();
-//     }
-// };
-
-// exports.updatePayslipStatus = async (req, res) => {
-//     const { payslipId } = req.params;
-//     const { status } = req.body;
-
-//     if (!status || !['Draft', 'Reviewed'].includes(status)) {
-//         return res.status(400).json({ message: 'Invalid status provided.' });
-//     }
-
-//     try {
-//         const [result] = await pool.query("UPDATE payslips SET status = ? WHERE id = ?", [status, payslipId]);
-//         if (result.affectedRows === 0) {
-//             return res.status(404).json({ message: 'Payslip not found.' });
-//         }
-//         res.status(200).json({ success: true, message: `Payslip status updated to ${status}.` });
-//     } catch (error) {
-//         console.error('Error updating payslip status:', error);
-//         res.status(500).json({ message: 'An internal server error occurred.' });
-//     }
-// };
-// exports.bulkAddComponents = async (req, res) => {
-//     const { cycleId } = req.params;
-//     const { component_name, component_type, amount, reason } = req.body;
-
-//     if (!component_name || !component_type || amount === undefined) {
-//         return res.status(400).json({ message: 'Component name, type, and amount are required.' });
-//     }
-
-//     let connection;
-//     try {
-//         connection = await pool.getConnection();
-//         await connection.beginTransaction();
-
-//         const [payslips] = await connection.query("SELECT id FROM payslips WHERE cycle_id = ?", [cycleId]);
-//         if (payslips.length === 0) {
-//             await connection.rollback();
-//             return res.status(404).json({ message: 'No payslips found for this cycle.' });
-//         }
-        
-//         const breakdown = { source: 'Bulk Manual Adjustment', reason };
-//         const breakdownString = JSON.stringify(breakdown);
-
-//         for (const payslip of payslips) {
-//             await connection.query(
-//                 `INSERT INTO payslip_details (payslip_id, component_name, component_type, amount, calculation_breakdown, cycle_id) 
-//                  VALUES (?, ?, ?, ?, ?, ?)`,
-//                 [payslip.id, component_name, component_type, amount, breakdownString, cycleId]
-//             );
-
-//             const [[totals]] = await connection.query(
-//                 `SELECT SUM(CASE WHEN component_type = 'earning' THEN amount ELSE 0 END) as gross,
-//                         SUM(CASE WHEN component_type = 'deduction' THEN amount ELSE 0 END) as ded
-//                  FROM payslip_details WHERE payslip_id = ?`, [payslip.id]
-//             );
-//             const net_pay = (totals.gross || 0) - (totals.ded || 0);
-//             await connection.query(
-//                 "UPDATE payslips SET gross_earnings = ?, total_deductions = ?, net_pay = ?, status = 'Draft' WHERE id = ?",
-//                 [totals.gross || 0, totals.ded || 0, net_pay, payslip.id]
-//             );
-//         }
-
-//         await connection.commit();
-//         res.status(200).json({ success: true, message: 'Bulk component added successfully. All payslips in this cycle are now in "Draft" status.' });
-
-//     } catch (error) {
-//         if (connection) await connection.rollback();
-//         console.error('Error in bulk add components:', error);
-//         res.status(500).json({ message: 'An internal server error occurred.' });
-//     } finally {
-//         if (connection) connection.release();
-//     }
-// };
-
-// exports.getMyPayslip = async (req, res) => {
-//     const { cycleId } = req.params;
-//     const employeeId = req.user.id;
-//     const [[payslip]] = await pool.query('SELECT id FROM payslips WHERE cycle_id = ? AND employee_id = ?', [cycleId, employeeId]);
-//     if (!payslip) {
-//         return res.status(404).json({ message: 'Payslip for this cycle not found.' });
-//     }
-//     req.params.payslipId = payslip.id;
-//     return exports.getPayslipForReview(req, res);
-// };
-
-
 const { pool } = require('../../db/connector');
 
 /**
@@ -279,6 +158,7 @@ exports.addManualAdjustment = async (req, res) => {
             "UPDATE payslips SET gross_earnings = ?, total_deductions = ?, net_pay = ?, status = 'Draft' WHERE id = ?",
             [totals.gross || 0, totals.ded || 0, net_pay, payslipId]
         );
+        await connection.query(`update payroll_cycles set status = 'Review' where id = (select cycle_id from payslips where id = ?)`,[payslipId])
 
         
 
@@ -425,10 +305,41 @@ exports.deletePayslipComponent = async (req, res) => {
             return res.status(404).json({ message: 'Payslip not found.' });
         }
 
-        if (payslip.status === 'Finalized' || payslip.status === 'Paid') {
+        if (payslip.status === 'Paid') {
             await connection.rollback();
             return res.status(409).json({ message: `Cannot modify a payslip that is already ${payslip.status}.` });
         }
+
+        // check for components 
+        
+        const [[componentId]] = await connection.query('select component_id from payslip_details where id = ?',[payslipDetailId])
+        
+        if(componentId.component_id == 98){
+            // cases
+            const [[itemId]] = await connection.query(`select id,item_id from payslip_processed_items where payslip_id = ? and item_type = 'hr_case'`,[payslipId])
+
+            
+            
+            await connection.query(`update hr_cases set status = 'Approved' , payslip_id = null where id = ?`,[itemId.item_id])
+            await connection.query(`delete from payslip_processed_items where id =?`,[itemId.id])
+        }
+        else if(componentId.component_id == 97){
+            //loans
+
+            const [[itemId]] = await connection.query(`select id,item_id from payslip_processed_items where payslip_id = ? and item_type = 'loan_emi'`,[payslipId])
+             
+            await connection.query(`update loan_amortization_schedule set status = 'Pending'  where id = ?`,[itemId.item_id])
+            await connection.query(`delete from payslip_processed_items where id =?`,[itemId.id])
+        }
+        else if(componentId.component_id == 99){
+            //reimbursement
+             const [[itemId]] = await connection.query(`select id,item_id from payslip_processed_items where payslip_id = ? and item_type = 'expense_claim'`,[payslipId])
+             
+            await connection.query(`update expense_claims set status = 'Processed' , reimbursed_in_payroll_id = null where id = ?`,[itemId.item_id])
+            await connection.query(`delete from payslip_processed_items where id =?`,[itemId.id])
+
+        }
+        
 
         // 2. Delete the specific component from the payslip_details table
         const [deleteResult] = await connection.query(

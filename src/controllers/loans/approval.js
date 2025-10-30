@@ -145,6 +145,31 @@ const disburseLoan = async (req, res) => {
                 balance -= principalComponent;
                 const dueDate = DateTime.fromISO(disbursement_date).plus({ months: i }).toISODate();
 
+
+                await connection.query(`
+                    INSERT INTO loan_amortization_schedule (loan_application_id, due_date, emi_amount, principal_component, interest_component)
+                    VALUES (?, ?, ?, ?, ?);
+                `, [applicationId, dueDate, emi, principalComponent, interestComponent]);
+            }
+            
+            await connection.query('UPDATE loan_applications SET emi_amount = ? WHERE id = ?', [emi.toFixed(2), applicationId]);
+        }
+        else{
+            const { approved_amount, tenure_months, interest_rate } = application;
+            
+            const monthlyInterestRate = (interest_rate || 0) / 12 / 100;
+            const emi = monthlyInterestRate > 0 ?
+                (approved_amount * monthlyInterestRate * Math.pow(1 + monthlyInterestRate, tenure_months)) / (Math.pow(1 + monthlyInterestRate, tenure_months) - 1) :
+                approved_amount / tenure_months;
+
+            let balance = approved_amount;
+            for (let i = 1; i <= tenure_months; i++) {
+                const interestComponent = balance * monthlyInterestRate;
+                const principalComponent = emi - interestComponent;
+                balance -= principalComponent;
+                const dueDate = DateTime.fromISO(disbursement_date).endOf('month').toISODate();
+
+
                 await connection.query(`
                     INSERT INTO loan_amortization_schedule (loan_application_id, due_date, emi_amount, principal_component, interest_component)
                     VALUES (?, ?, ?, ?, ?);

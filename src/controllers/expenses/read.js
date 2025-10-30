@@ -188,7 +188,7 @@ const getUpcomingPayrollReimbursements = async (req, res) => {
             LEFT JOIN user a ON ec.approved_by = a.id
             LEFT JOIN user p ON ec.processed_by = p.id
             LEFT JOIN expense_receipts er ON ec.id = er.expense_claim_id
-            WHERE ec.status = 'Processed' AND ec.reimbursement_method = 'Payroll'
+            WHERE ec.status = 'Processed' OR ec.status = 'Locked' AND ec.reimbursement_method = 'Payroll'
         `;
         const params = [];
 
