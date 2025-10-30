@@ -1,17 +1,20 @@
 
--- alter table employee_overtime_records add column reason text null;
-
--- alter table employee_salary_revisions add column updated_by int ;
-
--- ALTER TABLE employee_goals
--- MODIFY COLUMN employee_rating DECIMAL(5,2),
--- MODIFY COLUMN manager_rating DECIMAL(5,2);
-
--- ALTER TABLE employee_kpis
--- MODIFY COLUMN employee_rating DECIMAL(5,2),
--- MODIFY COLUMN manager_rating DECIMAL(5,2);
+-- ALTER TABLE payslip_processed_items 
+-- MODIFY COLUMN item_type ENUM('loan_emi', 'hr_case', 'expense_claim') NOT NULL;
 
 
--- delete from expense_on_employee;
--- alter table expense_on_employee add column jv text not null ;
+-- ALTER TABLE hr_cases
+-- ADD COLUMN payslip_id INT NULL,
+-- ADD CONSTRAINT fk_hr_cases_payslip
+-- FOREIGN KEY (payslip_id) REFERENCES payslips(id)
+-- ON DELETE SET NULL
+-- ON UPDATE CASCADE;
 
+
+-- alter table hr_cases modify column status enum ('Open','Under Review','Approved','Locked','Rejected','Closed') not null Default 'Open';
+
+-- alter table expense_claims modify column status enum ('Pending','Approved','Rejected','Processed','Locked','Reimbursed') not null default 'Pending';
+
+-- alter table loan_amortization_schedule modify column status enum ('Pending','Paid','Locked') not null default 'Pending';
+
+-- alter table payroll_cycles add column jv_number text ;

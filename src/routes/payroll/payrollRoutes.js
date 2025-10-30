@@ -81,13 +81,13 @@ router.post('/cycles/:cycleId/verifyAudit',  auditController.verifyAudit);
 
 // --- Payroll Run Execution (Fixed to use cycleController) ---
 router.post('/cycles/:cycleId/groups/:groupId/execute',  cycleController.executeGroupRun);
+router.patch('/cycles/paid', cycleController.markAsPaid);
 
 // --- Payslip Management & Review ---
 router.get('/payslips/cycle/:cycleId',  payslipController.getPayslipsForCycle);
 router.get('/payslips/:payslipId/review',  payslipController.getPayslipForReview);
 router.patch('/payslips/:payslipId/status',  payslipController.updatePayslipStatus);
 router.post('/payslips/:payslipId/adjust',  payslipController.addManualAdjustment);
-router.patch('/payslips/:payslipId/finalize', payslipController.finalizePayslip);
 router.post('/cycles/:cycleId/bulk-add', payslipController.bulkAddComponents);
 
 router.delete('/payslips/:payslipId/details/:payslipDetailId', payslipController.deletePayslipComponent);
