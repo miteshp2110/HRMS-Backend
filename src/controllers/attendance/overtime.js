@@ -87,7 +87,7 @@ const getOvertimeRequestsForApproval = async (req, res) => {
             SELECT eor.*, CONCAT(u.first_name, ' ', u.last_name) as employee_name
             FROM employee_overtime_records eor
             JOIN user u ON eor.employee_id = u.id
-            WHERE eor.status = 'pending_approval'
+            WHERE eor.status = 'pending_approval' AND u.is_active = 1
             ORDER BY eor.request_date ASC;
         `;
         const [requests] = await connection.query(sql);
@@ -111,7 +111,7 @@ const getOvertimeRequestsForApprovalForId = async (req, res) => {
             SELECT eor.*, CONCAT(u.first_name, ' ', u.last_name) as employee_name
             FROM employee_overtime_records eor
             JOIN user u ON eor.employee_id = u.id
-            WHERE u.id=? AND eor.status = 'pending_approval'
+            WHERE u.id=? AND eor.status = 'pending_approval' AND u.is_active=1
             ORDER BY eor.request_date ASC;
         `;
         const [requests] = await connection.query(sql,employeeId);
