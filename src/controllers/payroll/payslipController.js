@@ -269,6 +269,31 @@ exports.getMyPayslip = async (req, res) => {
     const employeeId = req.user.id;
 
     try {
+         const [[user]] = await pool.query('SELECT salary_visibility FROM user WHERE id = ?', [employeeId]);
+    if (!user || !user.salary_visibility) {
+        return res.status(403).json({ message: 'Access denied. Salary visibility is not enabled for your profile.' });
+    }
+        const [[payslip]] = await pool.query('SELECT id FROM payslips WHERE cycle_id = ? AND employee_id = ?', [cycleId, employeeId]);
+        if (!payslip) {
+            return res.status(404).json({ message: 'Payslip for this cycle not found.' });
+        }
+
+        // Reuse the detailed payslip function
+        req.params.payslipId = payslip.id;
+        return exports.getPayslipForReview(req, res);
+    } catch (error) {
+        console.error('Error fetching my payslip:', error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    }
+};
+
+exports.getEmployeePayslip = async (req, res) => {
+    const { cycleId,employeeId } = req.params;
+    
+
+    try {
+         
+    
         const [[payslip]] = await pool.query('SELECT id FROM payslips WHERE cycle_id = ? AND employee_id = ?', [cycleId, employeeId]);
         if (!payslip) {
             return res.status(404).json({ message: 'Payslip for this cycle not found.' });
