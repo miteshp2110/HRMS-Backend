@@ -219,8 +219,8 @@ const getAttendanceAuditHistory = async (req, res) => {
         return {
             id: record.id,
             fieldChanged: formatFieldName(fieldName),
-            oldValue: formatValue(fieldName, record.old_value),
-            newValue: formatValue(fieldName, record.new_value),
+            oldValue: record.old_value,
+            newValue:  record.new_value,
             changedAt: record.changed_at, // Return raw timestamp string from DB
             changedBy: record.changed_by_name || 'System',
             isBulkUpdate: !!record.bulk_log_id,

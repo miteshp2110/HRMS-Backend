@@ -1,6 +1,7 @@
 const express = require('express');
 const authenticate = require('../../middleware/authenticate');
 const authorize = require('../../middleware/authorize');
+const upload = require('../../middleware/uploadMiddleware')
 const {
   punchIn,
   punchOut,
@@ -20,6 +21,7 @@ const {
   getOvertimeAuditHistory,
   getOvertimeRequestsForApprovalForId,
   bulkCreateAttendance,
+  bulkUploadAttendanceExcel,
   
 } = require('../../controllers/attendance');
 const { updateAttendanceRecord } = require('../../controllers/attendance/update');
@@ -40,6 +42,8 @@ router.get('/summary/:employeeId/:year/:month', getEmployeeMonthlySummary); //ma
 router.post('/punch-in',canManageAttendance, punchIn);
 router.post('/punch-out',canManageAttendance, punchOut);
 router.post("/bulk",canManageAttendance,bulkCreateAttendance)
+
+router.post("/bulk-upload-excel", canManageAttendance, upload.single('file'), bulkUploadAttendanceExcel);
 // router.post('/update/pay-type/:recordId',canManageAttendance,updatePayType)
 
 // router.post('/update/overtime/:recordId',canManageAttendance,approveOvertime)

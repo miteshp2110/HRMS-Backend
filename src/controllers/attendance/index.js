@@ -1,6 +1,6 @@
 const { approveOvertime } = require('./approve');
 const { getAttendanceAuditHistory, getOvertimeAuditHistory } = require('./audit');
-const { bulkCreateAttendance } = require('./bulk');
+const { bulkCreateAttendance, bulkUploadAttendanceExcel } = require('./bulk');
 const { requestOvertime, getMyOvertimeRecords, getOvertimeRequestsForApproval, approveOrRejectOvertime, updateOvertimeRecord, deleteOvertimeRequest, getOvertimeRequestsForApprovalForId } = require('./overtime');
 const { punchIn, punchOut } = require('./punch');
 const { getMyAttendance, getAttendanceRecords } = require('./read');
@@ -14,7 +14,7 @@ module.exports = {
   punchOut,
   getMyAttendance,
   getAttendanceRecords,
-  updatePayType,
+  // updatePayType,
   approveOvertime,
   requestOvertime,
   getMyOvertimeRecords,
@@ -27,5 +27,6 @@ module.exports = {
   getAttendanceAuditHistory,
   getOvertimeAuditHistory,
   getOvertimeRequestsForApprovalForId,
-  bulkCreateAttendance
+  bulkCreateAttendance,
+  bulkUploadAttendanceExcel
 };
