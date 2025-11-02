@@ -1,2 +1,2 @@
-ALTER TABLE employee_overtime_audit_log
-DROP FOREIGN KEY employee_overtime_audit_log_ibfk_1;
+-- ALTER TABLE employee_overtime_audit_log
+-- DROP FOREIGN KEY employee_overtime_audit_log_ibfk_1;

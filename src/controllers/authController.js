@@ -83,4 +83,58 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { login };
+
+/**
+ * @description Changes a user's password (Super Admin functionality).
+ * Accepts user ID and new password, hashes it, and updates in database.
+ * @param {object} req - Express request object.
+ * @param {object} res - Express response object.
+ */
+const changePassword = async (req, res) => {
+  const { id, password } = req.body;
+
+  if (!id || !password) {
+    return res.status(400).json({ message: 'User ID and password are required.' });
+  }
+
+  // Password validation (optional but recommended)
+  if (password.length < 8) {
+    return res.status(400).json({success:false,message: 'Password must be at least 8 characters long.' });
+  }
+
+  let connection;
+  try {
+    connection = await pool.getConnection();
+
+    // Check if user exists
+    const [userCheck] = await connection.query(
+      'SELECT id FROM user WHERE id = ?',
+      [id]
+    );
+
+    if (userCheck.length === 0) {
+      return res.status(404).json({ success:false,message: 'User not found.' });
+    }
+
+    // Hash the new password
+    const saltRounds = 8;
+    const password_hash = await bcrypt.hash(password, saltRounds);
+
+    // Update the password in database
+    const updateSql = 'UPDATE user SET password_hash = ? WHERE id = ?';
+    await connection.query(updateSql, [password_hash, id]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully.'
+    });
+
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ message: 'An internal server error occurred.' });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+module.exports = { login, changePassword };
