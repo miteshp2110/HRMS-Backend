@@ -82,7 +82,7 @@ const { uploadProfileImage } = require('../../services/s3Service');
  * @description Creates a new user in the system.
  */
 const createUser = async (req, res) => {
-  console.log(req.body)
+  
   const {
     id, firstName, lastName, dob, email, phone, password, gender,
     emergencyContactName, emergencyContactRelation, emergencyContactNumber,
