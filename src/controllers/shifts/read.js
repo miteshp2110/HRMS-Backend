@@ -108,9 +108,39 @@ const getUsersWithUnmarkedAttendance = async (req, res) => {
     }
 };
 
+/**
+ * @description Gets the full details of the currently authenticated user's assigned shift.
+ */
+const getMyShiftDetails = async (req, res) => {
+    const shiftId = req.user.shift; // Get the user's shift ID from the authentication middleware
+    let connection;
+
+    if (!shiftId) {
+        return res.status(404).json({ message: 'You are not assigned to a shift.' });
+    }
+
+    try {
+        connection = await pool.getConnection();
+        const sql = 'SELECT * FROM shifts WHERE id = ?';
+        const [[shiftDetails]] = await connection.query(sql, [shiftId]);
+
+        if (!shiftDetails) {
+            return res.status(404).json({ message: 'Your assigned shift could not be found.' });
+        }
+
+        res.status(200).json(shiftDetails);
+    } catch (error) {
+        console.error(`Error fetching details for shift ${shiftId}:`, error);
+        res.status(500).json({ message: 'An internal server error occurred.' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
 
 module.exports = {
     getAllShifts,
     getActiveUsersByShift,
-    getUsersWithUnmarkedAttendance
+    getUsersWithUnmarkedAttendance,
+    getMyShiftDetails
 };
