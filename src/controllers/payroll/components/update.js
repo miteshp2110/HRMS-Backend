@@ -15,6 +15,10 @@ const updateComponent = async (req, res) => {
     return res.status(400).json({ message: "Type must be either 'earning' or 'deduction'." });
   }
 
+  if (id == 1 || id == 5 || id == 6){
+    return res.status(400).json({ message: "Core Components cannot be edited" });
+  }
+
   let connection;
   try {
     connection = await pool.getConnection();

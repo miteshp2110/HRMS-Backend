@@ -7,8 +7,8 @@ const deleteComponent = async (req, res) => {
   const { id } = req.params;
   let connection;
   try {
-    if(id==1){
-      return res.status(401).json({message:"Cannot Delete Base Salary Component"})
+    if(id==1 || id == 5 || id == 6){
+      return res.status(401).json({message:"Cannot Delete core components."})
     }
     connection = await pool.getConnection();
 

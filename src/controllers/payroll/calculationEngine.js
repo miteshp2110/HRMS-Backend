@@ -11,6 +11,45 @@ function toIdNameMap(rows) {
   }, {});
 }
 
+// NEW FUNCTION: Calculate working days excluding weekends and holidays
+async function calculateWorkingDaysInPeriod(connection, startDate, endDate) {
+  try {
+    const [result] = await connection.query(
+      `
+      SELECT COUNT(DISTINCT date_in_period) as working_days
+      FROM (
+          SELECT DATE_ADD(?, INTERVAL (a.a + (10 * b.a) + (100 * c.a)) DAY) as date_in_period
+          FROM 
+              (SELECT 0 AS a UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 
+               UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 
+               UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) AS a
+          CROSS JOIN 
+              (SELECT 0 AS a UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 
+               UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 
+               UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) AS b
+          CROSS JOIN 
+              (SELECT 0 AS a UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 
+               UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 
+               UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) AS c
+          WHERE DATE_ADD(?, INTERVAL (a.a + (10 * b.a) + (100 * c.a)) DAY) <= ?
+      ) dates
+      LEFT JOIN work_week ww ON DAYNAME(dates.date_in_period) = ww.day_of_week 
+          AND ww.is_working_day = 0
+      LEFT JOIN holidays h ON dates.date_in_period = h.holiday_date
+      WHERE ww.id IS NULL  -- Not a weekend/non-working day
+        AND h.id IS NULL;  -- Not a holiday
+      `,
+      [startDate, startDate, endDate]
+    );
+    
+    return result[0]?.working_days || 0;
+  } catch (error) {
+    console.error('Error calculating working days:', error);
+    throw error;
+  }
+}
+
+
 /**
  * @description Evaluate formula string or JSON array safely with component substitutions
  */
@@ -128,6 +167,35 @@ async function getEmployeeShiftDetails(connection, employeeId, startDate, endDat
   }
 }
 
+// async function getDetailedAttendanceData(connection, employeeId, startDate, endDate) {
+//   try {
+//     const [attendanceData] = await connection.query(
+//       `
+//       SELECT 
+//           ar.id as attendance_id,
+//           ar.attendance_date,
+//           COALESCE(ar.hours_worked, 0) as hours_worked,
+//           ar.attendance_status,
+//           COALESCE(s.scheduled_hours, 8) as shift_hours,
+//           s.name as shift_name,
+//           CASE 
+//               WHEN eor.id IS NOT NULL THEN GREATEST(0, COALESCE(ar.hours_worked, 0) - COALESCE(eor.overtime_hours, 0))
+//               ELSE COALESCE(ar.hours_worked, 0)
+//           END as regular_hours_only,
+//           COALESCE(eor.overtime_hours, 0) as overtime_hours,
+//           eor.overtime_type,
+//           eor.status as overtime_status
+//       FROM attendance_record ar
+//       JOIN shifts s ON ar.shift = s.id
+//       LEFT JOIN employee_overtime_records eor ON ar.id = eor.attendance_record_id 
+//           AND eor.status = 'approved'
+//       WHERE ar.employee_id = ? 
+//       AND ar.attendance_date BETWEEN ? AND ?
+//       ORDER BY ar.attendance_date
+//       `,
+//       [employeeId, startDate, endDate]
+//     );
+
 async function getDetailedAttendanceData(connection, employeeId, startDate, endDate) {
   try {
     const [attendanceData] = await connection.query(
@@ -140,6 +208,9 @@ async function getDetailedAttendanceData(connection, employeeId, startDate, endD
           COALESCE(s.scheduled_hours, 8) as shift_hours,
           s.name as shift_name,
           CASE 
+              -- For Leave status, count scheduled hours as worked (paid leave)
+              WHEN ar.attendance_status = 'Leave' THEN COALESCE(s.scheduled_hours, 8)
+              -- For Present/Half-Day, subtract overtime from worked hours
               WHEN eor.id IS NOT NULL THEN GREATEST(0, COALESCE(ar.hours_worked, 0) - COALESCE(eor.overtime_hours, 0))
               ELSE COALESCE(ar.hours_worked, 0)
           END as regular_hours_only,
@@ -219,6 +290,20 @@ async function getDetailedAttendanceData(connection, employeeId, startDate, endD
   }
 }
 
+// function calculateDaysInPeriod(startDate, endDate) {
+//   const start = new Date(startDate);
+//   const end = new Date(endDate);
+//   const diffTime = Math.abs(end - start);
+//   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+//   return diffDays;
+// }
+
+/**
+ * Helper function to calculate total days in a period
+ * @param {Date} startDate - Period start date
+ * @param {Date} endDate - Period end date
+ * @returns {number} Number of days
+ */
 function calculateDaysInPeriod(startDate, endDate) {
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -260,7 +345,8 @@ async function calculateProratedComponentRecursive(
   }
 
   let value = 0;
-  const daysInPeriod = calculateDaysInPeriod(cycle.start_date, cycle.end_date);
+  // const daysInPeriod = calculateDaysInPeriod(cycle.start_date, cycle.end_date);
+  const daysInPeriod = await calculateWorkingDaysInPeriod(connection,cycle.start_date,cycle.end_date)
 
   // Get component details
   const [[componentInfo]] = await connection.query(
@@ -351,24 +437,127 @@ async function calculateProratedComponentRecursive(
 }
 
 // Calculate base salary prorated for attendance
+// async function calculateBaseSalary(connection, employeeId, cycle, structureMap, calculatedComponents, shiftDetails, attendanceData) {
+//   try {
+//     const baseSalaryStructure = structureMap.get(1);
+//     if (!baseSalaryStructure) {
+//       throw new Error(`Base salary structure not found for employee ${employeeId}`);
+//     }
+
+//     const monthlyBaseSalary = parseFloat(baseSalaryStructure.value) || 0;
+//     if (monthlyBaseSalary === 0) {
+//       throw new Error(`Invalid base salary amount for employee ${employeeId}`);
+//     }
+
+//     // const daysInPeriod = calculateDaysInPeriod(cycle.start_date, cycle.end_date);
+//     const daysInPeriod = await calculateWorkingDaysInPeriod(connection,cycle.start_date, cycle.end_date);
+//     const dailyRate = monthlyBaseSalary / daysInPeriod;
+//     const hourlyRate = dailyRate / shiftDetails.scheduled_hours;
+
+//     const actualBaseSalary = hourlyRate * attendanceData.total_regular_hours;
+
+//     const breakdown = {
+//       source: "Employee Salary Structure + Attendance Analysis",
+//       calculation_method: "Hours-based Prorated Calculation",
+//       base_salary_structure: {
+//         component_id: 1,
+//         calculation_type: baseSalaryStructure.calculation_type,
+//         monthly_amount: monthlyBaseSalary,
+//       },
+//       period_details: {
+//         start_date: cycle.start_date,
+//         end_date: cycle.end_date,
+//         total_days_in_period: daysInPeriod,
+//       },
+//       rate_calculations: {
+//         daily_rate: dailyRate,
+//         daily_rate_formula: `AED ${monthlyBaseSalary} ÷ ${daysInPeriod} days = AED ${dailyRate.toFixed(2)}`,
+//         hourly_rate: hourlyRate,
+//         hourly_rate_formula: `AED ${dailyRate.toFixed(2)} ÷ ${shiftDetails.scheduled_hours} hours = AED ${hourlyRate.toFixed(2)}`,
+//       },
+//       shift_details: {
+//         shift_id: shiftDetails.shift_id,
+//         shift_name: shiftDetails.shift_name,
+//         scheduled_hours: shiftDetails.scheduled_hours,
+//         from_time: shiftDetails.from_time,
+//         to_time: shiftDetails.to_time,
+//       },
+//       attendance_analysis: {
+//         total_regular_hours: attendanceData.total_regular_hours,
+//         total_worked_hours: attendanceData.total_worked_hours,
+//         days_worked: attendanceData.days_worked,
+//         present_days: attendanceData.present_days,
+//         absent_days: attendanceData.absent_days,
+//         leave_days: attendanceData.leave_days,
+//         half_days: attendanceData.half_days,
+//       },
+//       final_calculation: {
+//         formula: `AED ${hourlyRate.toFixed(2)} × ${attendanceData.total_regular_hours} hours`,
+//         regular_hours_worked: attendanceData.total_regular_hours,
+//         computed_amount: actualBaseSalary,
+//       },
+//     };
+
+//     calculatedComponents.set(1, actualBaseSalary);
+
+//     return {
+//       component: { id: 1, name: "Base Salary", type: "earning" },
+//       amount: actualBaseSalary,
+//       breakdown,
+//     };
+//   } catch (error) {
+//     console.error(`Error calculating base salary for employee ${employeeId}:`, error);
+//     throw error;
+//   }
+// }
+
+/**
+ * Calculate base salary using working days only (excluding weekends and holidays)
+ * @param {Connection} connection - Database connection
+ * @param {number} employeeId - Employee ID
+ * @param {Object} cycle - Payroll cycle details
+ * @param {Map} structureMap - Salary structure map
+ * @param {Map} calculatedComponents - Map to store calculated components
+ * @param {Object} shiftDetails - Shift details
+ * @param {Object} attendanceData - Attendance data
+ * @returns {Promise<Object>} Calculated base salary with breakdown
+ */
 async function calculateBaseSalary(connection, employeeId, cycle, structureMap, calculatedComponents, shiftDetails, attendanceData) {
   try {
+    // Get base salary structure (component_id = 1)
     const baseSalaryStructure = structureMap.get(1);
     if (!baseSalaryStructure) {
       throw new Error(`Base salary structure not found for employee ${employeeId}`);
     }
 
+    // Get monthly base salary amount
     const monthlyBaseSalary = parseFloat(baseSalaryStructure.value) || 0;
     if (monthlyBaseSalary === 0) {
       throw new Error(`Invalid base salary amount for employee ${employeeId}`);
     }
 
-    const daysInPeriod = calculateDaysInPeriod(cycle.start_date, cycle.end_date);
-    const dailyRate = monthlyBaseSalary / daysInPeriod;
+    // Calculate working days (excluding weekends from work_week and holidays)
+    const workingDaysInPeriod = await calculateWorkingDaysInPeriod(
+      connection, 
+      cycle.start_date, 
+      cycle.end_date
+    );
+    
+    if (workingDaysInPeriod === 0) {
+      throw new Error(`No working days found in period for employee ${employeeId}`);
+    }
+
+    // Calculate total days (for reference)
+    const totalDaysInPeriod = calculateDaysInPeriod(cycle.start_date, cycle.end_date);
+    
+    // Calculate rates based on WORKING DAYS only
+    const dailyRate = monthlyBaseSalary / workingDaysInPeriod;
     const hourlyRate = dailyRate / shiftDetails.scheduled_hours;
 
+    // Calculate actual base salary based on hours worked (including leave hours)
     const actualBaseSalary = hourlyRate * attendanceData.total_regular_hours;
 
+    // Detailed breakdown for transparency
     const breakdown = {
       source: "Employee Salary Structure + Attendance Analysis",
       calculation_method: "Hours-based Prorated Calculation",
@@ -380,11 +569,14 @@ async function calculateBaseSalary(connection, employeeId, cycle, structureMap, 
       period_details: {
         start_date: cycle.start_date,
         end_date: cycle.end_date,
-        total_days_in_period: daysInPeriod,
+        total_days_in_period: totalDaysInPeriod,
+        working_days_only: workingDaysInPeriod,
+        excluded_days: totalDaysInPeriod - workingDaysInPeriod,
+        excluded_days_note: "Weekends and public holidays excluded from calculation"
       },
       rate_calculations: {
         daily_rate: dailyRate,
-        daily_rate_formula: `AED ${monthlyBaseSalary} ÷ ${daysInPeriod} days = AED ${dailyRate.toFixed(2)}`,
+        daily_rate_formula: `AED ${monthlyBaseSalary.toFixed(2)} ÷ ${workingDaysInPeriod} working days = AED ${dailyRate.toFixed(2)}`,
         hourly_rate: hourlyRate,
         hourly_rate_formula: `AED ${dailyRate.toFixed(2)} ÷ ${shiftDetails.scheduled_hours} hours = AED ${hourlyRate.toFixed(2)}`,
       },
@@ -402,15 +594,19 @@ async function calculateBaseSalary(connection, employeeId, cycle, structureMap, 
         present_days: attendanceData.present_days,
         absent_days: attendanceData.absent_days,
         leave_days: attendanceData.leave_days,
+        leave_hours_paid: attendanceData.leave_days * shiftDetails.scheduled_hours,
+        leave_hours_note: "Leave hours are included in total_regular_hours as paid time",
         half_days: attendanceData.half_days,
       },
       final_calculation: {
         formula: `AED ${hourlyRate.toFixed(2)} × ${attendanceData.total_regular_hours} hours`,
         regular_hours_worked: attendanceData.total_regular_hours,
         computed_amount: actualBaseSalary,
+        note: "Regular hours include: actual worked hours + leave hours (full scheduled hours per leave day)"
       },
     };
 
+    // Store the calculated base salary
     calculatedComponents.set(1, actualBaseSalary);
 
     return {
@@ -609,7 +805,7 @@ async function calculateOvertimeComponent(
           },
           percentage_calculation: {
             percentage: percentage,
-            formula: `(AED ${baseValue.toFixed(2)} × ${percentage}%) ÷ 100 = AED ${overtimeRatePerHour.toFixed(2)} per hour`,
+            formula: `(AED ${baseValue.toFixed(2)} x ${percentage}%) ÷ 100 = AED ${overtimeRatePerHour.toFixed(2)} per hour`,
           },
           final_calculation: `AED ${overtimeRatePerHour.toFixed(2)} × ${totalApprovedHours} hours = AED ${(overtimeRatePerHour * totalApprovedHours).toFixed(2)}`,
           overtime_records: overtimeRecords.map((record) => ({
