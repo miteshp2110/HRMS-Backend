@@ -436,7 +436,7 @@ const bulkUploadUsers = async (req, res) => {
   } catch (error) {
     if (connection) await connection.rollback();
     console.error('Error during bulk user upload:', error);
-    res.status(500).json({ message: 'An internal server error occurred.', error: error.message });
+    res.status(500).json({ message: error.message, error: error.message });
   } finally {
     if (connection) connection.release();
   }

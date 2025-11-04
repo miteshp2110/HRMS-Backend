@@ -9,12 +9,15 @@ const {
   rotateIndividualShifts,
   getActiveUsersByShift,
   getUsersWithUnmarkedAttendance,
+  getMyShiftDetails,
 } = require('../../controllers/shifts');
 
 const router = express.Router();
 
 router.use(authenticate);
 const canManageShifts = authorize(['shift.manage'])
+
+router.get('/my', getMyShiftDetails);
 
 // We'll use the 'manage_shifts' permission for CUD actions
 router.get('/:shiftId/unmarked-attendance/:date',getUsersWithUnmarkedAttendance)
