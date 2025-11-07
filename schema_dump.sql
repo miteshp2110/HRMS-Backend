@@ -122,7 +122,7 @@ CREATE TABLE `attendance_record` (
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`%`*/ /*!50003 TRIGGER `trg_attendance_update` AFTER UPDATE ON `attendance_record` FOR EACH ROW BEGIN
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER `trg_attendance_update` AFTER UPDATE ON `attendance_record` FOR EACH ROW BEGIN
     
     IF NOT (OLD.punch_in <=> NEW.punch_in) THEN
         INSERT INTO attendance_audit_log (attendance_id, field_name, old_value, new_value, changed_by, changed_at)
@@ -533,7 +533,7 @@ CREATE TABLE `employee_overtime_records` (
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`%`*/ /*!50003 TRIGGER `trg_employee_overtime_update` AFTER UPDATE ON `employee_overtime_records` FOR EACH ROW BEGIN
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER `trg_employee_overtime_update` AFTER UPDATE ON `employee_overtime_records` FOR EACH ROW BEGIN
     
     IF (OLD.overtime_hours <> NEW.overtime_hours) THEN
         INSERT INTO employee_overtime_audit_log
@@ -583,7 +583,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`%`*/ /*!50003 TRIGGER `trg_employee_overtime_delete` AFTER DELETE ON `employee_overtime_records` FOR EACH ROW BEGIN
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER `trg_employee_overtime_delete` AFTER DELETE ON `employee_overtime_records` FOR EACH ROW BEGIN
     INSERT INTO employee_overtime_audit_log
     (overtime_record_id, field_name, old_value, new_value, changed_by)
     VALUES (OLD.id, 'record_deleted', CONCAT(
@@ -676,7 +676,7 @@ CREATE TABLE `employee_salary_structure` (
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`%`*/ /*!50003 TRIGGER `trg_after_salary_structure_update` AFTER UPDATE ON `employee_salary_structure` FOR EACH ROW BEGIN
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER `trg_after_salary_structure_update` AFTER UPDATE ON `employee_salary_structure` FOR EACH ROW BEGIN
     DECLARE old_json JSON;
     DECLARE new_json JSON;
     
@@ -741,7 +741,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`%`*/ /*!50003 TRIGGER `trg_after_salary_structure_delete` AFTER DELETE ON `employee_salary_structure` FOR EACH ROW BEGIN
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER `trg_after_salary_structure_delete` AFTER DELETE ON `employee_salary_structure` FOR EACH ROW BEGIN
     INSERT INTO `employee_salary_structure_audit` (
         `salary_structure_id`,
         `employee_id`,
@@ -1215,7 +1215,7 @@ CREATE TABLE `leave_types` (
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`%`*/ /*!50003 TRIGGER `after_leavetype_insert` AFTER INSERT ON `leave_types` FOR EACH ROW BEGIN
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER `after_leavetype_insert` AFTER INSERT ON `leave_types` FOR EACH ROW BEGIN
     
     
     INSERT INTO employee_leave_balance (leave_id, employee_id, balance, created_at, updated_at)
@@ -1816,7 +1816,7 @@ CREATE TABLE `shifts` (
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`%`*/ /*!50003 TRIGGER `trg_set_scheduled_hours` BEFORE INSERT ON `shifts` FOR EACH ROW BEGIN
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER `trg_set_scheduled_hours` BEFORE INSERT ON `shifts` FOR EACH ROW BEGIN
     
     DECLARE minutes_diff INT;
 
@@ -1962,7 +1962,7 @@ CREATE TABLE `user` (
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`%`*/ /*!50003 TRIGGER `after_user_insert_populate_leave_balances` AFTER INSERT ON `user` FOR EACH ROW BEGIN
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER `after_user_insert_populate_leave_balances` AFTER INSERT ON `user` FOR EACH ROW BEGIN
     
     
     INSERT INTO employee_leave_balance (employee_id, leave_id, balance)
@@ -1987,7 +1987,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`%`*/ /*!50003 TRIGGER `trg_user_audit` AFTER UPDATE ON `user` FOR EACH ROW BEGIN
+/*!50003 CREATE*/ /*!50017 */ /*!50003 TRIGGER `trg_user_audit` AFTER UPDATE ON `user` FOR EACH ROW BEGIN
     
     IF (OLD.id <> NEW.id) THEN
         INSERT INTO user_audit(user_id, field_changed, old_value, new_value, updated_by)
