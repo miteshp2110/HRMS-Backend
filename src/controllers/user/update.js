@@ -9,6 +9,8 @@ const updateUser = async (req, res) => {
   const { id } = req.params;
   const fieldsToUpdate = req.body;
 
+  const updated_by = req.user.id
+
   // For security, never update a password hash directly with this generic endpoint.
   // Password changes should have their own dedicated, secure controller.
   delete fieldsToUpdate.password;
@@ -22,12 +24,13 @@ const updateUser = async (req, res) => {
   const fieldEntries = Object.entries(fieldsToUpdate);
   const setClause = fieldEntries.map(([key]) => `${key} = ?`).join(', ');
   const values = fieldEntries.map(([, value]) => value);
-  values.push(id); // Add the user ID for the WHERE clause
+  values.push(updated_by)
+  values.push(id);
 
   let connection;
   try {
     connection = await pool.getConnection();
-    const sql = `UPDATE user SET ${setClause} WHERE id = ?`;
+    const sql = `UPDATE user SET ${setClause} , updated_by = ? WHERE id = ?`;
     const [result] = await connection.query(sql, values);
 
     if (result.affectedRows === 0) {
