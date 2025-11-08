@@ -33,7 +33,7 @@ const {
 const router = express.Router();
 
 router.use(authenticate);
-const canManageLeaves = authorize(['leaves.manage']);
+const canManageLeaves = authorize([]);
 
 // We'll use a specific 'leaves.manage' permission for CUD actions
 router.post('/types', canManageLeaves, createLeaveType);

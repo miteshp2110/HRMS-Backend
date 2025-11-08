@@ -59,6 +59,7 @@ const isNonWorkingDay = async (attendanceDate, connection) => {
 
 /**
  * @description Creates or updates attendance records in bulk, with manual flags and automatic overtime.
+ * NOW SUPPORTS OVERNIGHT/NIGHT SHIFTS
  */
 const bulkCreateAttendance = async (req, res) => {
   const {
@@ -161,16 +162,39 @@ const bulkCreateAttendance = async (req, res) => {
           }).toUTC()
         : null;
 
+      // ========== NEW: DETECT OVERNIGHT SHIFT ==========
+      // Compare shift times as strings (HH:mm:ss format)
+      const isOvernightShift = shift.from_time > shift.to_time;
+      
+      // Calculate shift start time (always on attendance_date)
+      const shiftStartTimeUTC = DateTime.fromISO(
+        `${attendance_date}T${shift.from_time}`,
+        { zone: "utc" }
+      );
+
+      // Calculate shift end time (add 1 day if overnight shift)
+      let shiftEndTimeUTC;
+      if (isOvernightShift) {
+        const nextDay = DateTime.fromISO(attendance_date, { zone: "utc" }).plus({ days: 1 });
+        shiftEndTimeUTC = DateTime.fromISO(
+          `${nextDay.toISODate()}T${shift.to_time}`,
+          { zone: "utc" }
+        );
+      } else {
+        shiftEndTimeUTC = DateTime.fromISO(
+          `${attendance_date}T${shift.to_time}`,
+          { zone: "utc" }
+        );
+      }
+      // ========== END: OVERNIGHT SHIFT DETECTION ==========
+
       let effectivePunchInTime = punchInUTC;
       let effectivePunchOutTime = punchOutUTC;
       let calculatedIsLate = is_late;
       let calculatedIsEarlyDeparture = is_early_departure;
 
+      // ========== PUNCH IN LOGIC (unchanged logic, using calculated shiftStartTimeUTC) ==========
       if (punchInUTC && !isHoliday) {
-        const shiftStartTimeUTC = DateTime.fromISO(
-          `${attendance_date}T${shift.from_time}`,
-          { zone: "utc" }
-        );
         const shiftStartTime = shiftStartTimeUTC.setZone(timezone);
         const gracePeriodEnd = shiftStartTime.plus({
           minutes: shift.punch_in_margin,
@@ -189,11 +213,8 @@ const bulkCreateAttendance = async (req, res) => {
         }
       }
 
+      // ========== PUNCH OUT LOGIC (unchanged logic, using calculated shiftEndTimeUTC) ==========
       if (punchOutUTC && !isHoliday) {
-        const shiftEndTimeUTC = DateTime.fromISO(
-          `${attendance_date}T${shift.to_time}`,
-          { zone: "utc" }
-        );
         const shiftEndTime = shiftEndTimeUTC.setZone(timezone);
         const earlyDepartureThreshold = shiftEndTime.minus({
           minutes: shift.punch_out_margin,
@@ -231,6 +252,7 @@ const bulkCreateAttendance = async (req, res) => {
         ? effectivePunchOutTime.toFormat("yyyy-MM-dd HH:mm:ss")
         : null;
 
+      // ========== ATTENDANCE RECORD CREATION (unchanged) ==========
       if (punch_in_local && !punch_out_local) {
         const upsertSql = `
                     INSERT INTO attendance_record (employee_id, attendance_date, shift, punch_in, attendance_status, is_late, is_early_departure, updated_by)
@@ -313,6 +335,7 @@ const bulkCreateAttendance = async (req, res) => {
         ]);
       }
 
+      // ========== OVERTIME CALCULATION (updated with correct shiftEndTimeUTC) ==========
       if (shift && effectivePunchOutTime) {
         if (isHoliday) {
           const punchInForOvertimeCalc =
@@ -345,10 +368,7 @@ const bulkCreateAttendance = async (req, res) => {
             ]);
           }
         } else {
-          const shiftEndTimeUTC = DateTime.fromISO(
-            `${attendance_date}T${shift.to_time}`,
-            { zone: "utc" }
-          );
+          // Use the correctly calculated shiftEndTimeUTC (which already accounts for overnight shifts)
           const overtimeStartTime = shiftEndTimeUTC.plus({
             minutes: shift.overtime_threshold,
           });
@@ -385,6 +405,7 @@ const bulkCreateAttendance = async (req, res) => {
         }
       }
 
+      // ========== AUDIT LOG (unchanged) ==========
       const [[attendance_record]] = await connection.query(
         "SELECT id FROM attendance_record WHERE employee_id = ? AND attendance_date = ?",
         [employee_id, attendance_date]
@@ -424,21 +445,20 @@ const bulkCreateAttendance = async (req, res) => {
   }
 };
 
-// /**
-//  * @description Processes a bulk attendance upload from an Excel file (multi-day, multi-employee).
-//  */
+
+
+/**
+ * @description Processes a bulk attendance upload from an Excel file (multi-day, multi-employee).
+ */
 // const bulkUploadAttendanceExcel = async (req, res) => {
 //   if (!req.file) {
 //     return res.status(400).json({ message: "No file uploaded." });
 //   }
 //   const { timezone, reason } = req.body;
 //   if (!timezone || !reason) {
-//     return res
-//       .status(400)
-//       .json({
-//         message:
-//           "A timezone and a reason for the upload are required in the request body.",
-//       });
+//     return res.status(400).json({
+//       message: "A timezone and a reason for the upload are required in the request body.",
+//     });
 //   }
 //   const updatedById = req.user.id;
 
@@ -449,7 +469,7 @@ const bulkCreateAttendance = async (req, res) => {
 
 //     const workbook = new ExcelJS.Workbook();
 //     await workbook.xlsx.load(req.file.buffer);
-//     const worksheet = workbook.getWorksheet(1); // Get the first worksheet
+//     const worksheet = workbook.getWorksheet(1);
 
 //     const errors = [];
 //     let processedCount = 0;
@@ -462,9 +482,9 @@ const bulkCreateAttendance = async (req, res) => {
 //     for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
 //       const row = worksheet.getRow(rowNumber);
 //       const employeeId = row.getCell("A").value;
-//       const excelDate = row.getCell("D").value; // dd-MM-yyyy
-//       const excelPunchIn = row.getCell("E").value; // HH:mm
-//       const excelPunchOut = row.getCell("F").value; // HH:mm
+//       const excelDate = row.getCell("D").value;
+//       const excelPunchIn = row.getCell("E").value;
+//       const excelPunchOut = row.getCell("F").value;
 
 //       if (!employeeId || !excelDate || !excelPunchIn || !excelPunchOut) {
 //         errors.push({
@@ -475,7 +495,6 @@ const bulkCreateAttendance = async (req, res) => {
 //       }
 
 //       // --- 1. Parse Date and Time ---
-
 //       let attendanceDate, punchInTime, punchOutTime;
 
 //       // Handle date - ExcelJS returns Date objects for date cells
@@ -486,7 +505,6 @@ const bulkCreateAttendance = async (req, res) => {
 //           zone: "utc",
 //         });
 //       } else if (typeof excelDate === "number") {
-//         // Handle Excel serial date number
 //         attendanceDate = DateTime.fromJSDate(
 //           new Date(Date.UTC(0, 0, excelDate - 1, 0, 0, 0))
 //         );
@@ -588,82 +606,125 @@ const bulkCreateAttendance = async (req, res) => {
 //           }
 //           shift = shiftData;
 //           shiftCache.set(user.shift, shift);
+//           console.log(shift)
 //         }
 //       }
 
-//       // --- 3. Calculate All Fields ---
-//       const updateFields = {};
-//       const isHoliday = await isNonWorkingDay(
-//         attendanceDate.toJSDate(),
-//         connection
-//       );
+//       // --- 3. Check if Holiday ---
+//       const isHoliday = await isNonWorkingDay(attendanceDateISO, connection);
 
-//       // Calculate Flags (only if not a holiday)
-//       if (isHoliday) {
-//         updateFields.is_late = false;
-//         updateFields.is_early_departure = false;
-//       } else {
+//       // --- 4. Apply Punch In/Out Logic with Margins (EXACT LOGIC FROM bulkCreateAttendance) ---
+//       let effectivePunchInTime = punchInUTC;
+//       let effectivePunchOutTime = punchOutUTC;
+//       let calculatedIsLate = false;
+//       let calculatedIsEarlyDeparture = false;
+
+//       // Punch In Logic
+//       if (punchInUTC && !isHoliday) {
 //         const shiftStartTimeUTC = DateTime.fromISO(
 //           `${attendanceDateISO}T${shift.from_time}`,
 //           { zone: "utc" }
 //         );
-//         const gracePeriodEnd = shiftStartTimeUTC.plus({
+//         const shiftStartTime = shiftStartTimeUTC.setZone(timezone);
+//         const gracePeriodEnd = shiftStartTime.plus({
 //           minutes: shift.punch_in_margin,
 //         });
-//         updateFields.is_late = punchInUTC > gracePeriodEnd;
+//         const actualPunchTimeLocal = punchInUTC.setZone(timezone);
 
+//         if (actualPunchTimeLocal <= shiftStartTime) {
+//           effectivePunchInTime = shiftStartTimeUTC;
+//           calculatedIsLate = false;
+//         } else if (actualPunchTimeLocal <= gracePeriodEnd) {
+//           effectivePunchInTime = shiftStartTimeUTC;
+//           calculatedIsLate = false;
+//         } else {
+//           calculatedIsLate = true;
+//           effectivePunchInTime = punchInUTC;
+//         }
+//       }
+
+//       // Punch Out Logic
+//       if (punchOutUTC && !isHoliday) {
 //         const shiftEndTimeUTC = DateTime.fromISO(
 //           `${attendanceDateISO}T${shift.to_time}`,
 //           { zone: "utc" }
 //         );
-//         const earlyDepartureThreshold = shiftEndTimeUTC.minus({
+//         const shiftEndTime = shiftEndTimeUTC.setZone(timezone);
+//         const earlyDepartureThreshold = shiftEndTime.minus({
 //           minutes: shift.punch_out_margin,
 //         });
-//         updateFields.is_early_departure = punchOutUTC < earlyDepartureThreshold;
+//         const overtimeStartTime = shiftEndTime.plus({
+//           minutes: shift.overtime_threshold,
+//         });
+//         const actualPunchTimeLocal = punchOutUTC.setZone(timezone);
+
+//         if (actualPunchTimeLocal < earlyDepartureThreshold) {
+//           calculatedIsEarlyDeparture = true;
+//           effectivePunchOutTime = punchOutUTC;
+//         } else if (
+//           actualPunchTimeLocal >= earlyDepartureThreshold &&
+//           actualPunchTimeLocal <= shiftEndTime
+//         ) {
+//           effectivePunchOutTime = shiftEndTimeUTC;
+//           calculatedIsEarlyDeparture = false;
+//         } else if (
+//           actualPunchTimeLocal > shiftEndTime &&
+//           actualPunchTimeLocal <= overtimeStartTime
+//         ) {
+//           effectivePunchOutTime = shiftEndTimeUTC;
+//           calculatedIsEarlyDeparture = false;
+//         } else {
+//           effectivePunchOutTime = punchOutUTC;
+//           calculatedIsEarlyDeparture = false;
+//         }
 //       }
 
-//       // Calculate Hours
-//       const hoursWorked = calculateHoursWorked(
-//         punchInUTC.toJSDate(),
-//         punchOutUTC.toJSDate()
-//       );
-//       updateFields.hours_worked = parseFloat(hoursWorked.toFixed(2));
-//       updateFields.short_hours = isHoliday
+//       // --- 5. Calculate Hours Worked (using effective times) ---
+//       const hoursWorked = isHoliday
 //         ? 0
-//         : Math.max(0, parseFloat(shift.scheduled_hours) - hoursWorked).toFixed(
-//             2
-//           );
+//         : calculateHoursWorked(effectivePunchInTime, effectivePunchOutTime);
+//       const shortHours = isHoliday
+//         ? 0
+//         : Math.max(0, parseFloat(shift.scheduled_hours) - hoursWorked);
 
 //       // Determine Status
-//       updateFields.attendance_status = "Present";
-//       if (!isHoliday && hoursWorked < shift.half_day_threshold) {
-//         updateFields.attendance_status = "Half-Day";
-//       }
+//       let attendanceStatus =
+//         isHoliday || hoursWorked >= shift.half_day_threshold
+//           ? "Present"
+//           : "Half-Day";
 
-//       // --- 4. Upsert Attendance Record ---
+//       // --- 6. Upsert Attendance Record (store effective times) ---
+//       const formattedPunchIn = effectivePunchInTime
+//         ? effectivePunchInTime.toFormat("yyyy-MM-dd HH:mm:ss")
+//         : null;
+//       const formattedPunchOut = effectivePunchOutTime
+//         ? effectivePunchOutTime.toFormat("yyyy-MM-dd HH:mm:ss")
+//         : null;
+
 //       const upsertSql = `
-//                 INSERT INTO attendance_record (
-//                     employee_id, attendance_date, shift, punch_in, punch_out, 
-//                     hours_worked, short_hours, attendance_status, is_late, is_early_departure, 
-//                     updated_by, update_reason
-//                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-//                 ON DUPLICATE KEY UPDATE
-//                     punch_in = VALUES(punch_in), punch_out = VALUES(punch_out), hours_worked = VALUES(hours_worked),
-//                     short_hours = VALUES(short_hours), attendance_status = VALUES(attendance_status),
-//                     is_late = VALUES(is_late), is_early_departure = VALUES(is_early_departure),
-//                     updated_by = VALUES(updated_by), update_reason = VALUES(update_reason);
-//             `;
+//         INSERT INTO attendance_record (
+//           employee_id, attendance_date, shift, punch_in, punch_out, 
+//           hours_worked, short_hours, attendance_status, is_late, is_early_departure, 
+//           updated_by, update_reason
+//         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+//         ON DUPLICATE KEY UPDATE
+//           punch_in = VALUES(punch_in), punch_out = VALUES(punch_out), hours_worked = VALUES(hours_worked),
+//           short_hours = VALUES(short_hours), attendance_status = VALUES(attendance_status),
+//           is_late = VALUES(is_late), is_early_departure = VALUES(is_early_departure),
+//           updated_by = VALUES(updated_by), update_reason = VALUES(update_reason);
+//       `;
+
 //       const [result] = await connection.query(upsertSql, [
 //         employeeId,
 //         attendanceDateISO,
 //         shift.id,
-//         punchInUTC.toJSDate(),
-//         punchOutUTC.toJSDate(),
-//         updateFields.hours_worked,
-//         updateFields.short_hours,
-//         updateFields.attendance_status,
-//         updateFields.is_late,
-//         updateFields.is_early_departure,
+//         formattedPunchIn,
+//         formattedPunchOut,
+//         hoursWorked,
+//         shortHours,
+//         attendanceStatus,
+//         calculatedIsLate,
+//         calculatedIsEarlyDeparture,
 //         updatedById,
 //         reason,
 //       ]);
@@ -677,59 +738,85 @@ const bulkCreateAttendance = async (req, res) => {
 //           )
 //         )[0][0].id;
 
-//       // --- 5. Handle Overtime ---
-//       let overtime_hours = 0;
-//       let overtime_type = "regular";
-//       let overtime_start_time_utc = null;
-
-//       if (isHoliday) {
-//         overtime_hours = hoursWorked;
-//         overtime_type = "holiday";
-//         overtime_start_time_utc = punchInUTC;
-//       } else {
-//         const shiftEndTimeUTC = DateTime.fromISO(
-//           `${attendanceDateISO}T${shift.to_time}`,
-//           { zone: "utc" }
-//         );
-//         const overtimeThresholdTime = shiftEndTimeUTC.plus({
-//           minutes: shift.overtime_threshold,
-//         });
-//         if (punchOutUTC > overtimeThresholdTime) {
-//           overtime_hours = parseFloat(
-//             punchOutUTC.diff(shiftEndTimeUTC, "hours").as("hours").toFixed(2)
+//       // --- 7. Handle Overtime (EXACT LOGIC FROM bulkCreateAttendance) ---
+//       if (shift && effectivePunchOutTime) {
+//         if (isHoliday) {
+//           const punchInForOvertimeCalc = effectivePunchInTime;
+//           const overtime_hours = calculateHoursWorked(
+//             punchInForOvertimeCalc,
+//             effectivePunchOutTime
 //           );
-//           overtime_type = "regular";
-//           overtime_start_time_utc = shiftEndTimeUTC;
-//         }
-//       }
 
-//       if (overtime_hours > 0) {
-//         const overtimeSQL = `
-//                     INSERT INTO employee_overtime_records (
-//                         attendance_record_id, employee_id, request_date, overtime_hours,
-//                         overtime_type, overtime_start, overtime_end, reason, status
-//                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_approval')
-//                     ON DUPLICATE KEY UPDATE
-//                         overtime_hours = VALUES(overtime_hours), overtime_type = VALUES(overtime_type),
-//                         overtime_start = VALUES(overtime_start), overtime_end = VALUES(overtime_end),
-//                         reason = VALUES(reason), status = 'pending_approval',
-//                         processed_by = NULL, processed_at = NULL, rejection_reason = NULL;
-//                 `;
-//         await connection.query(overtimeSQL, [
-//           attendanceRecordId,
-//           employeeId,
-//           attendanceDateISO,
-//           overtime_hours,
-//           overtime_type,
-//           overtime_start_time_utc.toJSDate(),
-//           punchOutUTC.toJSDate(),
-//           reason,
-//         ]);
-//       } else {
-//         await connection.query(
-//           "DELETE FROM employee_overtime_records WHERE attendance_record_id = ?",
-//           [attendanceRecordId]
-//         );
+//           if (overtime_hours > 0) {
+//             const overtimeSQL = `
+//               INSERT INTO employee_overtime_records (
+//                 attendance_record_id, employee_id, request_date, overtime_hours,
+//                 overtime_type, overtime_start, overtime_end, reason, status
+//               ) VALUES (?, ?, ?, ?, 'holiday', ?, ?, ?, 'pending_approval')
+//               ON DUPLICATE KEY UPDATE
+//                 overtime_hours = VALUES(overtime_hours), overtime_type = 'holiday',
+//                 overtime_start = VALUES(overtime_start), overtime_end = VALUES(overtime_end),
+//                 reason = VALUES(reason), status = 'pending_approval',
+//                 processed_by = NULL, processed_at = NULL, rejection_reason = NULL;
+//             `;
+//             await connection.query(overtimeSQL, [
+//               attendanceRecordId,
+//               employeeId,
+//               attendanceDateISO,
+//               overtime_hours,
+//               punchInForOvertimeCalc.toJSDate(),
+//               effectivePunchOutTime.toJSDate(),
+//               reason,
+//             ]);
+//           }
+//         } else {
+//           const shiftEndTimeUTC = DateTime.fromISO(
+//             `${attendanceDateISO}T${shift.to_time}`,
+//             { zone: "utc" }
+//           );
+//           const overtimeStartTime = shiftEndTimeUTC.plus({
+//             minutes: shift.overtime_threshold,
+//           });
+//           const actualPunchOutLocal = punchOutUTC.setZone(timezone);
+//           const shiftEndTimeLocal = shiftEndTimeUTC.setZone(timezone);
+
+//           if (actualPunchOutLocal > overtimeStartTime.setZone(timezone)) {
+//             const overtime_hours = parseFloat(
+//               actualPunchOutLocal
+//                 .diff(shiftEndTimeLocal, "hours")
+//                 .as("hours")
+//                 .toFixed(2)
+//             );
+//             if (overtime_hours > 0) {
+//               const overtimeSQL = `
+//                 INSERT INTO employee_overtime_records (
+//                   attendance_record_id, employee_id, request_date, overtime_hours,
+//                   overtime_type, overtime_start, overtime_end, reason, status
+//                 ) VALUES (?, ?, ?, ?, 'regular', ?, ?, ?, 'pending_approval')
+//                 ON DUPLICATE KEY UPDATE
+//                   overtime_hours = VALUES(overtime_hours), overtime_type = 'regular',
+//                   overtime_start = VALUES(overtime_start), overtime_end = VALUES(overtime_end),
+//                   reason = VALUES(reason), status = 'pending_approval',
+//                   processed_by = NULL, processed_at = NULL, rejection_reason = NULL;
+//               `;
+//               await connection.query(overtimeSQL, [
+//                 attendanceRecordId,
+//                 employeeId,
+//                 attendanceDateISO,
+//                 overtime_hours,
+//                 overtimeStartTime.toJSDate(),
+//                 punchOutUTC.toJSDate(),
+//                 reason,
+//               ]);
+//             }
+//           } else {
+//             // No overtime, remove any existing overtime record
+//             await connection.query(
+//               "DELETE FROM employee_overtime_records WHERE attendance_record_id = ?",
+//               [attendanceRecordId]
+//             );
+//           }
+//         }
 //       }
 
 //       processedCount++;
@@ -755,21 +842,16 @@ const bulkCreateAttendance = async (req, res) => {
 //   } catch (error) {
 //     if (connection) await connection.rollback();
 //     console.error("Error during bulk attendance upload:", error);
-//     res
-//       .status(500)
-//       .json({
-//         message: "An internal server error occurred.",
-//         error: error.message,
-//       });
+//     res.status(500).json({
+//       message: "An internal server error occurred.",
+//       error: error.message,
+//     });
 //   } finally {
 //     if (connection) connection.release();
 //   }
 // };
 
 
-/**
- * @description Processes a bulk attendance upload from an Excel file (multi-day, multi-employee).
- */
 const bulkUploadAttendanceExcel = async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "No file uploaded." });
@@ -794,11 +876,9 @@ const bulkUploadAttendanceExcel = async (req, res) => {
     const errors = [];
     let processedCount = 0;
 
-    // Create a cache for shift details to reduce DB queries
     const shiftCache = new Map();
     const userCache = new Map();
 
-    // Iterate from row 2 (skipping header)
     for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
       const row = worksheet.getRow(rowNumber);
       const employeeId = row.getCell("A").value;
@@ -817,7 +897,7 @@ const bulkUploadAttendanceExcel = async (req, res) => {
       // --- 1. Parse Date and Time ---
       let attendanceDate, punchInTime, punchOutTime;
 
-      // Handle date - ExcelJS returns Date objects for date cells
+      // Handle date
       if (excelDate instanceof Date) {
         attendanceDate = DateTime.fromJSDate(excelDate, { zone: "utc" });
       } else if (typeof excelDate === "string") {
@@ -869,19 +949,34 @@ const bulkUploadAttendanceExcel = async (req, res) => {
         continue;
       }
 
-      // Combine date and time, then set them in the provided local timezone
+      // ========== NEW: DETECT OVERNIGHT SHIFT ==========
+      // Compare time values to detect if punch-out is on next day
+      const punchInMinutes = punchInTime.hour * 60 + punchInTime.minute;
+      const punchOutMinutes = punchOutTime.hour * 60 + punchOutTime.minute;
+      const isOvernightShift = punchInMinutes > punchOutMinutes;
+
+      // Combine date and time
       const punchInLocal = attendanceDate
-        .set({ hour: punchInTime.hour, minute: punchInTime.minute })
+        .set({ hour: punchInTime.hour, minute: punchInTime.minute, second: 0 })
         .setZone(timezone, { keepLocalTime: true });
-      const punchOutLocal = attendanceDate
-        .set({ hour: punchOutTime.hour, minute: punchOutTime.minute })
+
+      // For overnight shifts, add 1 day to punch-out date
+      let punchOutDate = attendanceDate;
+      if (isOvernightShift) {
+        punchOutDate = attendanceDate.plus({ days: 1 });
+      }
+
+      const punchOutLocal = punchOutDate
+        .set({ hour: punchOutTime.hour, minute: punchOutTime.minute, second: 0 })
         .setZone(timezone, { keepLocalTime: true });
+      // ========== END: OVERNIGHT SHIFT DETECTION ==========
 
       // Convert to UTC for database storage and comparison
       const punchInUTC = punchInLocal.toUTC();
       const punchOutUTC = punchOutLocal.toUTC();
       const attendanceDateISO = attendanceDate.toISODate();
 
+      // Validation now works correctly for overnight shifts
       if (punchOutUTC <= punchInUTC) {
         errors.push({
           row: rowNumber,
@@ -932,18 +1027,32 @@ const bulkUploadAttendanceExcel = async (req, res) => {
       // --- 3. Check if Holiday ---
       const isHoliday = await isNonWorkingDay(attendanceDateISO, connection);
 
-      // --- 4. Apply Punch In/Out Logic with Margins (EXACT LOGIC FROM bulkCreateAttendance) ---
+      // ========== NEW: BUILD CORRECT SHIFT BOUNDARIES FOR OVERNIGHT ==========
+      // Extract dates from the local punch times we just created
+      const punchInDateStr = punchInLocal.toISODate();
+      const punchOutDateStr = punchOutLocal.toISODate();
+
+      const shiftStartTimeUTC = DateTime.fromISO(
+        `${punchInDateStr}T${shift.from_time}`,
+        { zone: "utc" }
+      );
+
+      const shiftEndTimeUTC = DateTime.fromISO(
+        `${punchOutDateStr}T${shift.to_time}`,
+        { zone: "utc" }
+      );
+      // ========== END: CORRECT SHIFT BOUNDARIES ==========
+
+      // --- 4. Apply Punch In/Out Logic (REST REMAINS SAME) ---
       let effectivePunchInTime = punchInUTC;
       let effectivePunchOutTime = punchOutUTC;
+      let boundedPunchInTime = punchInUTC;
+      let boundedPunchOutTime = punchOutUTC;
       let calculatedIsLate = false;
       let calculatedIsEarlyDeparture = false;
 
       // Punch In Logic
       if (punchInUTC && !isHoliday) {
-        const shiftStartTimeUTC = DateTime.fromISO(
-          `${attendanceDateISO}T${shift.from_time}`,
-          { zone: "utc" }
-        );
         const shiftStartTime = shiftStartTimeUTC.setZone(timezone);
         const gracePeriodEnd = shiftStartTime.plus({
           minutes: shift.punch_in_margin,
@@ -952,22 +1061,21 @@ const bulkUploadAttendanceExcel = async (req, res) => {
 
         if (actualPunchTimeLocal <= shiftStartTime) {
           effectivePunchInTime = shiftStartTimeUTC;
+          boundedPunchInTime = shiftStartTimeUTC;
           calculatedIsLate = false;
         } else if (actualPunchTimeLocal <= gracePeriodEnd) {
           effectivePunchInTime = shiftStartTimeUTC;
+          boundedPunchInTime = shiftStartTimeUTC;
           calculatedIsLate = false;
         } else {
           calculatedIsLate = true;
           effectivePunchInTime = punchInUTC;
+          boundedPunchInTime = punchInUTC;
         }
       }
 
       // Punch Out Logic
       if (punchOutUTC && !isHoliday) {
-        const shiftEndTimeUTC = DateTime.fromISO(
-          `${attendanceDateISO}T${shift.to_time}`,
-          { zone: "utc" }
-        );
         const shiftEndTime = shiftEndTimeUTC.setZone(timezone);
         const earlyDepartureThreshold = shiftEndTime.minus({
           minutes: shift.punch_out_margin,
@@ -980,39 +1088,48 @@ const bulkUploadAttendanceExcel = async (req, res) => {
         if (actualPunchTimeLocal < earlyDepartureThreshold) {
           calculatedIsEarlyDeparture = true;
           effectivePunchOutTime = punchOutUTC;
+          boundedPunchOutTime = punchOutUTC;
         } else if (
           actualPunchTimeLocal >= earlyDepartureThreshold &&
           actualPunchTimeLocal <= shiftEndTime
         ) {
           effectivePunchOutTime = shiftEndTimeUTC;
+          boundedPunchOutTime = shiftEndTimeUTC;
           calculatedIsEarlyDeparture = false;
         } else if (
           actualPunchTimeLocal > shiftEndTime &&
           actualPunchTimeLocal <= overtimeStartTime
         ) {
           effectivePunchOutTime = shiftEndTimeUTC;
+          boundedPunchOutTime = shiftEndTimeUTC;
           calculatedIsEarlyDeparture = false;
         } else {
           effectivePunchOutTime = punchOutUTC;
+          boundedPunchOutTime = shiftEndTimeUTC; // Cap for short hours
           calculatedIsEarlyDeparture = false;
         }
       }
 
-      // --- 5. Calculate Hours Worked (using effective times) ---
+      // --- 5. Calculate Hours Worked (using bounded times for short hours) ---
+      const boundedHours = isHoliday
+        ? 0
+        : calculateHoursWorked(boundedPunchInTime, boundedPunchOutTime);
+      
       const hoursWorked = isHoliday
         ? 0
         : calculateHoursWorked(effectivePunchInTime, effectivePunchOutTime);
+      
       const shortHours = isHoliday
         ? 0
-        : Math.max(0, parseFloat(shift.scheduled_hours) - hoursWorked);
+        : Math.max(0, parseFloat(shift.scheduled_hours) - boundedHours);
 
       // Determine Status
       let attendanceStatus =
-        isHoliday || hoursWorked >= shift.half_day_threshold
+        isHoliday || boundedHours >= shift.half_day_threshold
           ? "Present"
           : "Half-Day";
 
-      // --- 6. Upsert Attendance Record (store effective times) ---
+      // --- 6. Upsert Attendance Record ---
       const formattedPunchIn = effectivePunchInTime
         ? effectivePunchInTime.toFormat("yyyy-MM-dd HH:mm:ss")
         : null;
@@ -1057,7 +1174,7 @@ const bulkUploadAttendanceExcel = async (req, res) => {
           )
         )[0][0].id;
 
-      // --- 7. Handle Overtime (EXACT LOGIC FROM bulkCreateAttendance) ---
+      // --- 7. Handle Overtime (uses correct shiftEndTimeUTC) ---
       if (shift && effectivePunchOutTime) {
         if (isHoliday) {
           const punchInForOvertimeCalc = effectivePunchInTime;
@@ -1089,10 +1206,6 @@ const bulkUploadAttendanceExcel = async (req, res) => {
             ]);
           }
         } else {
-          const shiftEndTimeUTC = DateTime.fromISO(
-            `${attendanceDateISO}T${shift.to_time}`,
-            { zone: "utc" }
-          );
           const overtimeStartTime = shiftEndTimeUTC.plus({
             minutes: shift.overtime_threshold,
           });
@@ -1129,7 +1242,6 @@ const bulkUploadAttendanceExcel = async (req, res) => {
               ]);
             }
           } else {
-            // No overtime, remove any existing overtime record
             await connection.query(
               "DELETE FROM employee_overtime_records WHERE attendance_record_id = ?",
               [attendanceRecordId]

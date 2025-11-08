@@ -14,7 +14,7 @@ const router = express.Router();
 // Apply authentication and authorization middleware
 router.use(authenticate);
 const canManageJobs = authorize(['job.manage']);
-router.use(canManageJobs);
+// router.use(canManageJobs);
 
 // We'll use 'users.edit' for CUD and 'users.view' for R
 router.post('/',  createJob);

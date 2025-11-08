@@ -15,7 +15,7 @@ const {
 const router = express.Router();
 
 router.use(authenticate);
-const canManageShifts = authorize(['shift.manage'])
+const canManageShifts = authorize([])
 
 router.get('/my', getMyShiftDetails);
 

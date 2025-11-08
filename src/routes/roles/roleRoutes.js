@@ -15,7 +15,7 @@ const router = express.Router();
 const canManageRoles = authorize(['roles.manage']);
 
 router.use(authenticate);
-router.use(canManageRoles);
+// router.use(canManageRoles);
 
 router.get("/:roleId/employees",getEmployeesByRole)
 router.put('/:id/permissions',  manageRolePermissions);

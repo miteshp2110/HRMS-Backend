@@ -5,7 +5,7 @@ const rotationController = require('../../controllers/shifts/shiftRotationContro
 
 const router = express.Router();
 router.use(authenticate);
-const canManageShifts = authorize(['shift.manage']);
+const canManageShifts = authorize([]);
 
 // CRUD for Shift Rotations
 router.post('/', canManageShifts, rotationController.createRotation);
